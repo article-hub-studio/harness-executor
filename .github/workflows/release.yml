@@ -94,7 +94,7 @@ jobs:
           APK=$(ls mobile/android/app/build/outputs/apk/release/*.apk | head -1)
           BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
           "$BT/apksigner" verify --print-certs "$APK" | head -5
-          DEST="upio-executor-v${{ steps.ver.outputs.version }}.apk"
+          DEST="harness-executor-v${{ steps.ver.outputs.version }}.apk"
           cp "$APK" "$DEST"
           echo "APK_PATH=$DEST" >> "$GITHUB_ENV"
 
@@ -102,10 +102,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.ver.outputs.version }}
-          name: upio Executor v${{ steps.ver.outputs.version }}
+          name: Harness Executor v${{ steps.ver.outputs.version }}
           prerelease: ${{ contains(steps.ver.outputs.version, '-') }}
           body: |
-            ## 📱 upio MCP Executor Harness — bản Android
+            ## 📱 Harness Executor — bản Android (self-hosted)
 
             - **APK đã ký** — tải về và cài trực tiếp (cho phép "Nguồn không xác định")
             - Mở app → nhập địa chỉ harness server, ví dụ `http://192.168.1.10:8787` → **Kết nối**

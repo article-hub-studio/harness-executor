@@ -1,6 +1,6 @@
 {
   "appId": "com.upio.executor",
-  "appName": "upio Executor",
+  "appName": "Harness Executor",
   "webDir": "www",
   "server": {
     "androidScheme": "http"

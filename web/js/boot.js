@@ -112,8 +112,8 @@ export function gateBoot(deps) {
       root.innerHTML = `
         <div class="boot-core">
           <div>
-            <div class="boot-mark">upio<span class="wm-dot"></span></div>
-            <div class="boot-tag">mobile mcp executor</div>
+            <div class="boot-mark">harness<span class="wm-dot"></span></div>
+            <div class="boot-tag">self-hosted executor</div>
           </div>
           <ol class="boot-steps">
             ${STEPS.map((st) => `

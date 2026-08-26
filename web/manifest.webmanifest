@@ -1,6 +1,6 @@
 {
-  "name": "upio MCP Executor — Mobile Control Plane",
-  "short_name": "upio",
+  "name": "Harness Executor — Self-hosted MCP Control Plane",
+  "short_name": "Executor",
   "description": "Điều khiển MCP servers, plugins, skills và agents từ điện thoại — giao diện trắng đen tối giản.",
   "id": "upio-mcp-executor",
   "start_url": "./",

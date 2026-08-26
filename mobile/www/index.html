@@ -1,11 +1,11 @@
 <!doctype html>
-<!-- upio Executor — APK launcher: trỏ tới harness server trên LAN -->
+<!-- Harness Executor — APK launcher: trỏ tới harness server (LAN hoặc chính máy này qua Termux) -->
 <html lang="vi">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#ffffff">
-<title>upio Executor</title>
+<meta name="theme-color" content="#0a0a0a">
+<title>Harness Executor</title>
 <style>
   :root{--bg:#fff;--sf:#fafafa;--tx:#0a0a0a;--mu:#737373;--bd:#e5e5e5}
   @media(prefers-color-scheme:dark){:root{--bg:#0a0a0a;--sf:#141414;--tx:#fafafa;--mu:#a3a3a3;--bd:#262626}}
@@ -13,12 +13,12 @@
   body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--tx);
     min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;
     padding:max(24px,env(safe-area-inset-top)) 20px max(24px,env(safe-area-inset-bottom))}
-  .brand{display:flex;align-items:center;gap:10px;margin-bottom:6px}
-  .logo{width:44px;height:44px;border-radius:12px;background:#111113;color:#fff;display:flex;align-items:center;justify-content:center}
-  .logo svg{width:24px;height:24px}
-  h1{font-size:26px;font-weight:800;letter-spacing:-.02em}
+  .brand{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+  .logo{width:52px;height:52px;border-radius:13px;background:#0a0a0a;display:flex;align-items:center;justify-content:center}
+  .logo svg{width:30px;height:30px;display:block}
+  h1{font-size:27px;font-weight:800;letter-spacing:-.02em}
   h1 .dot{color:var(--mu)}
-  .tag{color:var(--mu);font-size:13px;margin-bottom:34px;letter-spacing:.04em;text-transform:uppercase;font-weight:600}
+  .tag{color:var(--mu);font-size:12px;margin-bottom:34px;letter-spacing:.05em;text-transform:uppercase;font-weight:600}
   form{width:100%;max-width:420px}
   label{display:block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mu);margin-bottom:8px}
   input{width:100%;padding:14px 16px;font-size:16px;border-radius:10px;border:1px solid var(--bd);
@@ -27,8 +27,10 @@
   button{width:100%;margin-top:14px;padding:15px;font-size:15px;font-weight:700;border:0;border-radius:10px;
     background:var(--tx);color:var(--bg);cursor:pointer;letter-spacing:.02em;transition:opacity .15s,transform .1s}
   button:active{transform:scale(.98)} button:disabled{opacity:.55}
-  .hint{margin-top:22px;color:var(--mu);font-size:12.5px;line-height:1.7;text-align:center}
-  .hint code{background:var(--sf);border:1px solid var(--bd);padding:1px 6px;border-radius:5px;font-size:11.5px}
+  .hint{margin-top:22px;color:var(--mu);font-size:12.5px;line-height:1.8;text-align:center}
+  .hint code{background:var(--sf);border:1px solid var(--bd);padding:1px 6px;border-radius:5px;font-size:11px;
+    word-break:break-all;-webkit-user-select:text;user-select:text}
+  .selfhost{margin-top:10px;padding-top:10px;border-top:1px dashed var(--bd)}
   .err{display:none;width:100%;max-width:420px;margin-top:12px;color:#dc2626;font-size:13px;text-align:center}
   .foot{position:fixed;bottom:max(14px,env(safe-area-inset-bottom));left:0;right:0;text-align:center;color:var(--mu);font-size:11px}
   .spin{display:inline-block;width:13px;height:13px;border:2px solid var(--bd);border-top-color:var(--tx);border-radius:50%;
@@ -39,11 +41,12 @@
 <body>
   <div class="brand">
     <div class="logo" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none"><rect x="4.2" y="4.2" width="15.6" height="15.6" rx="4.5" stroke="#fff" stroke-width="2"/><circle cx="12" cy="12" r="2.1" fill="#fff"/></svg>
+      <!-- glyph giống VS Code — trắng trên nền đen -->
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="#ffffff" fill-rule="evenodd" d="M23.15 2.587L18.21.21a1.49 1.49 0 0 0-1.705.29l-9.46 8.63l-4.12-3.128a1 1 0 0 0-1.276.057L.327 7.261A1 1 0 0 0 .326 8.74L3.899 12L.326 15.26a1 1 0 0 0 .001 1.479L1.65 17.94a1 1 0 0 0 1.276.057l4.12-3.128l9.46 8.63a1.49 1.49 0 0 0 1.704.29l4.942-2.377A1.5 1.5 0 0 0 24 20.06V3.939a1.5 1.5 0 0 0-.85-1.352m-5.146 14.861L10.826 12l7.178-5.448z"/></svg>
     </div>
-    <h1>upio<span class="dot">.</span></h1>
+    <h1>harness<span class="dot">.</span></h1>
   </div>
-  <div class="tag">mobile mcp executor</div>
+  <div class="tag">self-hosted mcp executor</div>
 
   <form id="f">
     <label for="addr">Địa chỉ harness server</label>
@@ -54,18 +57,21 @@
   </form>
 
   <div class="hint">
-    Trên máy tính chạy: <code>node server/index.js</code><br>
-    Dùng cùng Wi-Fi · lấy IP bằng <code>hostname -I</code> · cổng mặc định <code>8787</code>
+    Trên máy Linux / VPS / Termux chạy:<br>
+    <code>curl -fsSL https://raw.githubusercontent.com/article-hub-studio/upio-mcp-executor-harness/main/install.sh | bash</code><br>
+    <span class="selfhost">
+      Cùng Wi-Fi lấy IP bằng <code>hostname -I</code> · cổng mặc định <code>8787</code><br>
+      Chạy ngay trên điện thoại này? Cài <b>Termux</b> rồi dán lệnh trên.
+    </span>
   </div>
-  <div class="foot">upio labs · MCP Executor Harness</div>
+  <div class="foot">upio labs · Harness Executor</div>
 
 <script>
 (function () {
-  var KEY = 'upio.server';
+  var KEY = 'upio.server'; // giữ key cũ để không mất địa chỉ đã lưu
   var $ = function (s) { return document.querySelector(s); };
   var addr = $('#addr'), err = $('#err'), btn = $('#go');
   try { var saved = localStorage.getItem(KEY); if (saved) addr.value = saved; } catch (e) {}
-  // tự gợi ý: nếu mở qua file:// thì để placeholder, còn nếu có origin http thì dùng
   if (!addr.value && location.protocol.startsWith('http') && location.port) {
     addr.value = location.origin;
   }

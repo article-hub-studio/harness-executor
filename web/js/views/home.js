@@ -9,7 +9,7 @@ export async function render(el) {
   el.innerHTML = `
   <div class="container">
     <header class="hero">
-      <h1 class="hero-brand"><span class="wm">upio<span class="wm-dot"></span></span><span class="hero-sub" style="margin-top:0">executor</span></h1>
+      <h1 class="hero-brand"><span class="wm">harness<span class="wm-dot"></span></span><span class="hero-sub" style="margin-top:0">executor</span></h1>
       <p class="hero-sub">Mobile control plane cho MCP servers · plugins · skills · agents</p>
     </header>
 

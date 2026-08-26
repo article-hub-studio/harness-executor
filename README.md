@@ -1,6 +1,14 @@
-# ⚡ upio Mobile MCP Executor Harness
+# ⚡ Harness Executor
 
-WebUI mobile-first (PWA) + backend Node.js **zero-dependency** cho **MCP Executor**:
+<a href="https://github.com/article-hub-studio"><img src="https://github.com/article-hub-studio.png?size=56" width="40" height="40" alt="author avatar" style="border-radius:50%"></a> **by article-hub-studio** (upio labs) · [Releases](https://github.com/article-hub-studio/upio-mcp-executor-harness/releases) · APK Android ký sẵn
+
+Self-hosted **MCP control plane** chạy 1 lệnh trên Linux / VPS / macOS / Termux — không cần máy tính từ xa riêng:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/article-hub-studio/upio-mcp-executor-harness/main/install.sh | bash
+```
+
+WebUI mobile-first (PWA + APK) · backend Node.js **zero-dependency**:
 quản lý **98 MCP servers**, **143 plugins**, **41 skills**, environment auto-builder,
 custom model hub (OpenAI-compatible) và điều phối đa-agent — tất cả tối ưu cho **mobile executor**.
 
@@ -46,20 +54,42 @@ npm run build-icons           # tái sinh web/js/icons.js (cần: npm i --no-sav
 - **Android (Chrome)**: menu ⋮ → *Install app* / *Add to Home screen*.
 - Service worker cache static → mở lại được cả khi offline; API vẫn cần server.
 
+## 🖥 Self-host 1 lệnh — không cần máy tính riêng
+
+Chạy thẳng trên **Linux / VPS / macOS / Termux (chính điện thoại Android)**:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/article-hub-studio/upio-mcp-executor-harness/main/install.sh | bash
+```
+
+Script tự làm mọi thứ: kiểm tra/cài Node.js ≥20 (apt · dnf · pacman · brew · Termux pkg · binary tĩnh),
+clone repo về `~/harness-executor`, sinh registry, mở server. **Không npm install** — backend zero-dependency.
+
+Tuỳ chọn:
+
+```bash
+... | bash -s -- --port 8787        # đổi cổng
+... | bash -s -- --dir ~/he         # đổi thư mục cài
+... | bash -s -- --daemon           # chạy nền (nohup, log tại harness.log)
+... | bash -s -- --service          # systemd user service (tự khởi động lại)
+```
+
+Cập nhật bản mới? Chạy lại đúng lệnh trên — script `git pull` + giữ nguyên dữ liệu.
+
 ## 📲 App Android (APK) — build & ký tự động
 
 Repo có sẵn workflow GitHub Actions (`.github/workflows/release.yml`):
 
 ```bash
 # Release bản mới — chỉ cần đẩy tag:
-git tag v1.0.1 && git push origin v1.1.1   # hỗ trợ tới v9.9.9
+git tag v1.0.1 && git push origin v1.0.1   # hỗ trợ tới v9.9.9
 # hoặc chạy tay: Actions → Release Android APK → Run workflow → nhập version
 ```
 
 CI sẽ: sync Capacitor → build APK release trên runner → **ký tự động** (dùng repo secrets
 `ANDROID_KEYSTORE_B64`/`ANDROID_STORE_PASSWORD`/`ANDROID_KEY_ALIAS`/`ANDROID_KEY_PASSWORD`
 nếu có, không có thì tự sinh keystore ephemeral — APK vẫn cài được, chỉ cần gỡ bản cũ khi lên version mới)
-→ tạo **GitHub Release** kèm file `upio-executor-vX.Y.Z.apk`.
+→ tạo **GitHub Release** kèm file `harness-executor-vX.Y.Z.apk`.
 
 App mở ra là màn launcher đen–trắng: nhập địa chỉ harness server (vd `http://192.168.1.10:8787`) →
 Kết nối → load UI mới nhất trực tiếp từ server (cập nhật tính năng không cần cài lại APK).

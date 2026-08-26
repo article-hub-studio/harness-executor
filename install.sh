@@ -1,0 +1,162 @@
+#!/usr/bin/env bash
+# =============================================================
+#  Harness Executor — selfhost installer 1 lệnh
+#
+#    curl -fsSL https://raw.githubusercontent.com/article-hub-studio/upio-mcp-executor-harness/main/install.sh | bash
+#
+#  Hoạt động trên: Ubuntu/Debian · Fedora/Arch · macOS · Termux (chính điện thoại!)
+#  Tuỳ chọn:  --port 8787   --dir ~/harness-executor   --service (systemd)   --daemon
+# =============================================================
+set -euo pipefail
+
+REPO_URL="${UPIO_REPO:-https://github.com/article-hub-studio/upio-mcp-executor-harness.git}"
+PORT="${UPIO_PORT:-8787}"
+DIR=""
+MODE="run"          # run | daemon | service
+BRANCH="main"
+
+say()  { printf '\033[1m▸\033[0m %s\n' "$*"; }
+ok()   { printf '\033[32m✔\033[0m %s\n' "$*"; }
+warn() { printf '\033[33m⚠\033[0m %s\n' "$*"; }
+die()  { printf '\033[31m✖ %s\033[0m\n' "$*" >&2; exit 1; }
+
+# ---------- parse args ----------
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --port)    PORT="$2"; shift 2 ;;
+    --dir)     DIR="$2"; shift 2 ;;
+    --branch)  BRANCH="$2"; shift 2 ;;
+    --service) MODE="service"; shift ;;
+    --daemon)  MODE="daemon"; shift ;;
+    -h|--help)
+      sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) die "Tham số không hiểu: $1 (xem --help)" ;;
+  esac
+done
+DIR="${DIR:-$HOME/harness-executor}"
+IS_TERMUX=false
+case "${PREFIX:-}" in *com.termux*) IS_TERMUX=true ;; esac
+
+banner() {
+  cat <<'EOF'
+
+   ██╗  ██╗ █████╗ ██████╗ ███╗   ██╗███████╗███████╗███████╗
+   ██║  ██║██╔══██╗██╔══██╗████╗  ██║██╔════╝██╔════╝██╔════╝
+   ███████║███████║██████╔╝██╔██╗ ██║█████╗  ███████╗███████╗
+   ██╔══██║██╔══██║██╔══██╗██║╚██╗██║██╔══╝  ╚════██║╚════██║
+   ██║  ██║██║  ██║██║  ██║██║ ╚████║███████╗███████║███████║
+   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝╚══════╝╚══════╝
+              EXECUTOR · self-hosted MCP control plane
+EOF
+}
+
+# ---------- 1. Node.js ≥20 ----------
+need_node=true
+if command -v node >/dev/null 2>&1; then
+  V="$(node -v | sed 's/v//' | cut -d. -f1)"
+  if [ "$V" -ge 20 ] 2>/dev/null; then need_node=false; ok "Node.js $(node -v) đã có"; fi
+fi
+if $need_node; then
+  say "Cài đặt Node.js ≥20…"
+  if $IS_TERMUX; then
+    pkg install -y nodejs-lts || pkg install -y nodejs || die "pkg install nodejs thất bại"
+  elif command -v apt-get >/dev/null 2>&1; then
+    if command -v sudo >/dev/null 2>&1 && [ "$(id -u)" != 0 ]; then SUDO=sudo; else SUDO=; fi
+    curl -fsSL https://deb.nodesource.com/setup_22.x | $SUDO bash - >/dev/null 2>&1 \
+      || warn "nodesource setup lỗi — thử node của distro"
+    $SUDO apt-get install -y nodejs >/dev/null 2>&1 \
+      || { $SUDO apt-get update -y >/dev/null; $SUDO apt-get install -y nodejs npm >/dev/null; } \
+      || die "apt cài Node thất bại — cài thủ công rồi chạy lại"
+  elif command -v dnf >/dev/null 2>&1; then dnf install -y nodejs || die "dnf thất bại"
+  elif command -v pacman >/dev/null 2>&1; then pacman -Sy --noconfirm nodejs || die "pacman thất bại"
+  elif command -v brew >/dev/null 2>&1; then brew install node@22 || brew install node || die "brew thất bại"
+  else
+    # fallback binary tĩnh
+    ARCH=$(uname -m); case "$ARCH" in x86_64) A=x64 ;; aarch64|arm64) A=arm64 ;; *) die "Arch lạ: $ARCH" ;; esac
+    NV="v22.11.0"
+    say "Tải node ${NV} binary (${A})…"
+    mkdir -p "$HOME/.local/opt"
+    curl -fsSL "https://nodejs.org/dist/${NV}/node-${NV}-linux-${A}.tar.xz" -o /tmp/node.txz || die "tải node thất bại"
+    tar -xJf /tmp/node.txz -C "$HOME/.local/opt"
+    export PATH="$HOME/.local/opt/node-${NV}-linux-${A}/bin:$PATH"
+  fi
+  ok "Node.js $(node -v)"
+fi
+
+# ---------- 2. git ----------
+if ! command -v git >/dev/null 2>&1; then
+  say "Cài git…"
+  if $IS_TERMUX; then pkg install -y git
+  elif command -v apt-get >/dev/null 2>&1; then
+    if command -v sudo >/dev/null 2>&1 && [ "$(id -u)" != 0 ]; then SUDO=sudo; else SUDO=; fi
+    $SUDO apt-get install -y git
+  else die "Thiếu git — cài rồi chạy lại"; fi
+fi
+
+# ---------- 3. clone / update ----------
+if [ -d "$DIR/.git" ]; then
+  say "Cập nhật mã nguồn tại $DIR…"
+  git -C "$DIR" fetch origin "$BRANCH" --quiet
+  git -C "$DIR" reset --hard "origin/$BRANCH" --quiet
+else
+  say "Clone repository vào $DIR …"
+  rm -rf "$DIR"
+  git clone --depth 1 -b "$BRANCH" "$REPO_URL" "$DIR" --quiet || die "clone thất bại"
+fi
+cd "$DIR"
+
+# ---------- 4. dữ liệu (zero-dependency: không npm install!) ----------
+if [ ! -s data/mcps.json ]; then
+  say "Sinh registry mô phỏng (106 MCPs · 143 plugins · 41 skills)…"
+  node scripts/generate-registries.js >/dev/null
+fi
+mkdir -p workspace mcp-servers
+
+# ---------- 5. chạy ----------
+export PORT
+LAN_IPS=$(hostname -I 2>/dev/null | tr ' ' '\n' | grep -E '^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)' | head -3 || true)
+
+case "$MODE" in
+  service)
+    say "Tạo systemd user service…"
+    mkdir -p "$HOME/.config/systemd/user"
+    NODE_BIN="$(command -v node)"
+    cat > "$HOME/.config/systemd/user/harness.service" <<EOF
+[Unit]
+Description=Harness Executor (MCP control plane)
+After=network-online.target
+
+[Service]
+WorkingDirectory=$DIR
+ExecStart=$NODE_BIN server/index.js
+Restart=always
+RestartSec=3
+Environment=PORT=$PORT
+
+[Install]
+WantedBy=default.target
+EOF
+    systemctl --user daemon-reload
+    systemctl --user enable --now harness.service
+    ok "Service đang chạy — quản lý bằng: systemctl --user status harness"
+    ;;
+  daemon)
+    say "Khởi động nền (nohup)…"
+    nohup node server/index.js > "$DIR/harness.log" 2>&1 &
+    echo $! > "$DIR/harness.pid"
+    sleep 2
+    ok "PID $(cat "$DIR/harness.pid") · log: tail -f $DIR/harness.log"
+    ;;
+  *)
+    banner
+    ;;
+esac
+
+echo ""
+ok  "Harness Executor sẵn sàng!"
+echo "   ┌─ Mở trên điện thoại / APK:"
+$([ -n "$LAN_IPS" ]) && for ip in $LAN_IPS; do echo "   │    http://$ip:$PORT"; done
+echo "   ├─ Máy này:            http://localhost:$PORT"
+echo "   └─ Dừng (Ctrl+C) hoặc: systemctl --user stop harness"
+echo ""
+[ "$(basename "$0")" = "install.sh" ] && [ "$MODE" = "run" ] && exec node server/index.js

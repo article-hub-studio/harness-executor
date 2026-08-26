@@ -79,12 +79,22 @@ export async function render(el) {
         <!-- (3) About -->
         <div class="card pad" style="margin-top:14px">
           <h3 class="card-title">${icon('solar/book', 'ic-sm')} About</h3>
+          <a class="author-card" href="https://github.com/article-hub-studio" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:12px;margin:10px 0 14px;padding:10px;border:1px solid var(--bd);border-radius:10px;text-decoration:none;color:inherit">
+            <img class="author-pic" src="https://github.com/article-hub-studio.png?size=96" alt="avatar tác giả"
+                 width="44" height="44" loading="lazy" referrerpolicy="no-referrer"
+                 style="width:44px;height:44px;border-radius:50%;border:1px solid var(--bd);background:var(--sf);object-fit:cover;flex:none"
+                 onerror="this.style.display='none'">
+            <span style="display:flex;flex-direction:column;gap:2px;min-width:0">
+              <span style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mu)">Author</span>
+              <b style="font-size:14px">article-hub-studio ${icon('blade/external', 'ic-xs')}</b>
+            </span>
+          </a>
           <div class="about-list stagger">
             <div><span class="k">Version</span><b id="about-ver">—</b></div>
             <div><span class="k">Stack</span><span>Vanilla ES modules · CSS thuần · zero-dependency Node</span></div>
             <div><span class="k">Registry</span><span>${esc(String(store.counts.mcps || '98'))} MCPs · ${esc(String(store.counts.plugins || '143'))} plugins · ${esc(String(store.counts.skills || '41'))} skills</span></div>
             <div><span class="k">Credit</span><span>© upio labs<span class="wm-dot" style="margin-left:2px"></span></span></div>
-            <div><span class="k">Repo</span><a href="https://github.com/upio-labs/mcp-executor" target="_blank" rel="noopener noreferrer">github.com/upio-labs/mcp-executor ${icon('blade/external', 'ic-xs')}</a></div>
+            <div><span class="k">Repo</span><a href="https://github.com/article-hub-studio/upio-mcp-executor-harness" target="_blank" rel="noopener noreferrer">github.com/article-hub-studio/upio-mcp-executor-harness ${icon('blade/external', 'ic-xs')}</a></div>
           </div>
         </div>
       </section>

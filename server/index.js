@@ -119,7 +119,7 @@ function fail(res, status, error) {
 
 route('GET', '/api/status', (ctx) => {
   ok(ctx.res, {
-    ok: true, name: 'upio MCP Executor Harness', version: VERSION,
+    ok: true, name: 'Harness Executor', product: 'MCP Executor Harness', version: VERSION,
     uptimeSec: Math.floor((Date.now() - STARTED) / 1000),
     counts: executor.stats().counts ?? {},
     connectedMcps: executor.connectedCount(),
@@ -360,7 +360,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`\n  ⚡ upio MCP Executor Harness v${VERSION}`);
+  console.log(`\n  ⚡ Harness Executor · self-hosted MCP control plane v${VERSION}`);
   console.log(`  ➜ Local:   http://localhost:${PORT}`);
   console.log(`  ➜ Network: http://0.0.0.0:${PORT}  (dùng IP LAN để mở trên điện thoại)`);
   console.log(`  ➜ API:     /api/status · /api/events (SSE) · /v1/chat/completions\n`);
