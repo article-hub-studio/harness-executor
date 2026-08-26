@@ -169,7 +169,19 @@ EOF
     nohup node server/index.js > "$DIR/harness.log" 2>&1 &
     echo $! > "$DIR/harness.pid"
     sleep 2
-    ok "PID $(cat "$DIR/harness.pid") · log: tail -f $DIR/harness.log"
+    PID_N="$(cat "$DIR/harness.pid")"
+    if kill -0 "$PID_N" 2>/dev/null; then
+      ok "PID $PID_N · log: tail -f $DIR/harness.log"
+      sleep 4
+      if kill -0 "$PID_N" 2>/dev/null; then
+        ok "Server vẫn sống sau 6s — tốt."
+      else
+        warn "Server tít sau khi installer thoát (Android/Termux kill?) — xem: tail -20 $DIR/harness.log"
+        tail -20 "$DIR/harness.log" 2>/dev/null | sed 's/^/      │ /'
+      fi
+    else
+      die "Node chết ngay — xem log: tail -20 $DIR/harness.log"
+    fi
     ;;
   *)
     banner

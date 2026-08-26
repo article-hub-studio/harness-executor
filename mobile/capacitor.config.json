@@ -3,7 +3,10 @@
   "appName": "Harness Executor",
   "webDir": "www",
   "server": {
-    "androidScheme": "http"
+    "androidScheme": "http",
+    "allowNavigation": [
+      "*"
+    ]
   },
   "android": {
     "allowMixedContent": true,

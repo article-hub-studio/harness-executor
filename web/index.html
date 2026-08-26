@@ -22,7 +22,30 @@
 </head>
 <body>
   <!-- Offline / API-unreachable banner -->
-  <div id="offline-banner" role="status"><span data-icon="blade/warn" data-cls="ic-sm"></span>API offline — một số dữ liệu không khả dụng</div>
+  <div id="offline-banner" role="status"><span data-icon="blade/warn" data-cls="ic-sm"></span><span id="offline-text">API offline — một số dữ liệu không khả dụng</span>
+    <button type="button" id="offline-retry" style="margin-left:10px;padding:3px 12px;font-size:11.5px;font-weight:700;border:1px solid currentColor;border-radius:99px;background:transparent;color:inherit;cursor:pointer">Thử lại</button></div>
+  <script>
+    (function () {
+      var t0 = Date.now();
+      function retry() {
+        fetch('/api/status', { signal: AbortSignal.timeout(2500), cache: 'no-store' })
+          .then(function (r) { return r.json(); })
+          .then(function (j) {
+            if (j && j.ok === true) { location.reload(); return true; }
+            throw new Error('no');
+          }).catch(function () {
+            var b = document.getElementById('offline-text');
+            if (b && Date.now() - t0 > 4000) b.textContent = 'API offline (' + location.host + ') — đang thử lại mỗi 4s…';
+            setTimeout(retry, 4000);
+          });
+      }
+      window.addEventListener('load', function () {
+        var btn = document.getElementById('offline-retry');
+        if (btn) btn.addEventListener('click', function () { location.reload(); });
+        setTimeout(retry, 1200);
+      });
+    })();
+  </script>
 
   <!-- View containers (router hash-based) -->
   <main id="views">
