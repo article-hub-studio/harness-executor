@@ -133,6 +133,16 @@ mkdir -p workspace mcp-servers
 # ---------- 5. chạy ----------
 export PORT
 
+# CHỐNG CHẠY TRÙNG: cổng đã có harness sống thì không spawn thêm nữa
+if command -v curl >/dev/null 2>&1 \
+   && curl -fsS --max-time 2 "http://127.0.0.1:$PORT/api/status" 2>/dev/null | grep -q '"ok":true'; then
+  ok "Harness Executor ĐANG CHẠY SẴN ở cổng $PORT — không khởi động trùng."
+  echo "   ✓ Mở APK là tự kết nối ngay."
+  echo "   Muốn khởi động lại từ đầu:"
+  echo "     pkill -f server/index.js && sleep 1 && chạy lại lệnh cài"
+  exit 0
+fi
+
 # Termux: giữ CPU thức dậy để Android không giết server khi thu nhỏ/tắt màn
 if $IS_TERMUX && command -v termux-wake-lock >/dev/null 2>&1; then
   say "Giữ wake-lock (chống Android kill tiến trình)…"
