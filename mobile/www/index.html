@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Harness Executor — APK launcher: trỏ tới harness server (LAN hoặc chính máy này qua Termux) -->
+<!-- Harness Executor — APK launcher: tự dò server → tự kết nối · chưa có thì TỰ CÀI qua Termux -->
 <html lang="vi">
 <head>
 <meta charset="utf-8">
@@ -18,20 +18,26 @@
   .logo svg{width:30px;height:30px;display:block}
   h1{font-size:27px;font-weight:800;letter-spacing:-.02em}
   h1 .dot{color:var(--mu)}
-  .tag{color:var(--mu);font-size:12px;margin-bottom:34px;letter-spacing:.05em;text-transform:uppercase;font-weight:600}
+  .tag{color:var(--mu);font-size:12px;margin-bottom:30px;letter-spacing:.05em;text-transform:uppercase;font-weight:600}
   form{width:100%;max-width:420px}
   label{display:block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mu);margin-bottom:8px}
   input{width:100%;padding:14px 16px;font-size:16px;border-radius:10px;border:1px solid var(--bd);
     background:var(--sf);color:var(--tx);outline:none;transition:border-color .15s}
   input:focus{border-color:var(--tx)}
-  button{width:100%;margin-top:14px;padding:15px;font-size:15px;font-weight:700;border:0;border-radius:10px;
+  button{font-size:15px;font-weight:700;border:0;border-radius:10px;
     background:var(--tx);color:var(--bg);cursor:pointer;letter-spacing:.02em;transition:opacity .15s,transform .1s}
   button:active{transform:scale(.98)} button:disabled{opacity:.55}
-  .hint{margin-top:22px;color:var(--mu);font-size:12.5px;line-height:1.8;text-align:center}
+  #go{width:100%;margin-top:14px;padding:15px}
+  .auto-card{width:100%;max-width:420px;margin-top:18px;padding:14px 16px;border:1px solid var(--bd);
+    border-radius:12px;background:var(--sf)}
+  .auto-title{font-size:13px;font-weight:800;display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .auto-desc{color:var(--mu);font-size:12.5px;line-height:1.65;margin-bottom:10px}
+  #btn-termux{display:none;width:100%;padding:13px;margin-top:4px}
+  .status{margin-top:10px;color:var(--mu);font-size:12.5px;line-height:1.8;text-align:center;min-height:18px}
+  .hint{margin-top:16px;color:var(--mu);font-size:12px;line-height:1.8;text-align:center}
   .hint code{background:var(--sf);border:1px solid var(--bd);padding:1px 6px;border-radius:5px;font-size:11px;
     word-break:break-all;-webkit-user-select:text;user-select:text}
-  .selfhost{margin-top:10px;padding-top:10px;border-top:1px dashed var(--bd)}
-  .err{display:none;width:100%;max-width:420px;margin-top:12px;color:#dc2626;font-size:13px;text-align:center}
+  .err{display:none;width:100%;max-width:420px;margin-top:10px;color:#dc2626;font-size:13px;text-align:center}
   .foot{position:fixed;bottom:max(14px,env(safe-area-inset-bottom));left:0;right:0;text-align:center;color:var(--mu);font-size:11px}
   .spin{display:inline-block;width:13px;height:13px;border:2px solid var(--bd);border-top-color:var(--tx);border-radius:50%;
     vertical-align:-2px;margin-right:7px;animation:r .8s linear infinite}
@@ -41,61 +47,184 @@
 <body>
   <div class="brand">
     <div class="logo" aria-hidden="true">
-      <!-- glyph giống VS Code — trắng trên nền đen -->
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="#ffffff" fill-rule="evenodd" d="M23.15 2.587L18.21.21a1.49 1.49 0 0 0-1.705.29l-9.46 8.63l-4.12-3.128a1 1 0 0 0-1.276.057L.327 7.261A1 1 0 0 0 .326 8.74L3.899 12L.326 15.26a1 1 0 0 0 .001 1.479L1.65 17.94a1 1 0 0 0 1.276.057l4.12-3.128l9.46 8.63a1.49 1.49 0 0 0 1.704.29l4.942-2.377A1.5 1.5 0 0 0 24 20.06V3.939a1.5 1.5 0 0 0-.85-1.352m-5.146 14.861L10.826 12l7.178-5.448z"/></svg>
     </div>
     <h1>harness<span class="dot">.</span></h1>
   </div>
-  <div class="tag">self-hosted mcp executor</div>
+  <div class="tag" id="tagline">self-hosted mcp executor</div>
 
-  <form id="f">
-    <label for="addr">Địa chỉ harness server</label>
+  <div class="status" id="status"><span class="spin"></span><span data-i18n="probing">Đang tự tìm harness server…</span></div>
+
+  <form id="f" style="display:none">
+    <label for="addr" data-i18n="addr-label">Địa chỉ harness server</label>
     <input id="addr" type="url" inputmode="url" autocomplete="off" spellcheck="false"
-           placeholder="http://192.168.1.10:8787" required>
-    <button id="go" type="submit">Kết nối</button>
-    <div class="err" id="err"></div>
+           placeholder="http://192.168.1.10:8787">
+    <button id="go" type="submit" data-i18n="connect">Kết nối</button>
   </form>
+  <div class="err" id="err"></div>
 
-  <div class="hint">
-    Trên máy Linux / VPS / Termux chạy:<br>
-    <code>curl -fsSL https://raw.githubusercontent.com/article-hub-studio/upio-mcp-executor-harness/main/install.sh | bash</code><br>
-    <span class="selfhost">
-      Cùng Wi-Fi lấy IP bằng <code>hostname -I</code> · cổng mặc định <code>8787</code><br>
-      Chạy ngay trên điện thoại này? Cài <b>Termux</b> rồi dán lệnh trên.
-    </span>
+  <div class="auto-card" id="auto-card" style="display:none">
+    <div class="auto-title">🤖 <span data-i18n="auto-title">Chưa có server — cài TỰ ĐỘNG trên máy này?</span></div>
+    <div class="auto-desc" id="auto-desc"><span data-i18n="auto-desc">Qua Termux, Harness sẽ tự tạo Environment · tự chạy lệnh cài · tự connect. Bạn chỉ cần chờ (~1 phút lần đầu).</span></div>
+    <button id="btn-termux" type="button" data-i18n="auto-btn">⚡ Cài tự động qua Termux</button>
+  </div>
+
+  <div class="hint" id="hint" style="display:none">
+    <span data-i18n="hint-line1">Trên máy Linux / VPS / Termux:</span><br>
+    <code>curl -fsSL https://raw.githubusercontent.com/article-hub-studio/harness-executor/main/install.sh | bash</code><br>
+    <span style="display:block;margin-top:6px" data-i18n="hint-line2">Cùng Wi-Fi lấy IP bằng hostname -I · cổng mặc định 8787</span>
   </div>
   <div class="foot">upio labs · Harness Executor</div>
 
 <script>
 (function () {
-  var KEY = 'upio.server'; // giữ key cũ để không mất địa chỉ đã lưu
-  var $ = function (s) { return document.querySelector(s); };
-  var addr = $('#addr'), err = $('#err'), btn = $('#go');
-  try { var saved = localStorage.getItem(KEY); if (saved) addr.value = saved; } catch (e) {}
-  if (!addr.value && location.protocol.startsWith('http') && location.port) {
-    addr.value = location.origin;
+  var KEY = 'upio.server';
+  var LANG_KEY = 'harness.lang';
+  var I18N = {
+    vi: {
+      probing: 'Đang tự tìm harness server…',
+      'addr-label': 'Địa chỉ harness server',
+      connect: 'Kết nối',
+      'auto-title': 'Chưa có server — cài TỰ ĐỘNG trên máy này?',
+      'auto-desc': 'Qua Termux, Harness sẽ tự tạo Environment · tự chạy lệnh cài · tự connect. Bạn chỉ cần chờ (~1 phút lần đầu).',
+      'auto-btn': '⚡ Cài tự động qua Termux',
+      'hint-line1': 'Trên máy Linux / VPS / Termux:',
+      'hint-line2': 'Cùng Wi-Fi lấy IP bằng hostname -I · cổng mặc định 8787',
+      tagline: 'self-hosted mcp executor',
+      noTermux: 'Chưa có Termux? Cài từ F-Droid hoặc Play Store rồi mở lại app.',
+      sentTermux: '⚙️ Gửi lệnh cài vào Termux… (nhớ cấp quyền RUN_COMMAND nếu hỏi)',
+      installing: '⏳ Tự động cài ({s}s) — đang tải Node + sinh registry + auto-boot…',
+      tooLong: '⚠️ Quá lâu chưa thấy server. Mở app Termux xem log, hoặc kiểm tra quyền RUN_COMMAND.',
+      refused: 'Termux từ chối lệnh: {m} — mở Termux thủ công và dán lệnh dưới.',
+      notReach: 'Không kết nối được {u} — kiểm tra IP/cổng, cùng Wi-Fi, và server đang chạy.',
+      connecting: 'Tự kết nối tới {u} …'
+    },
+    en: {
+      probing: 'Looking for a harness server automatically…',
+      'addr-label': 'Harness server address',
+      connect: 'Connect',
+      'auto-title': 'No server yet — install AUTOMATICALLY on this device?',
+      'auto-desc': 'Via Termux, the Harness will set up the environment, run the installer and connect by itself. Just wait (~1 min the first time).',
+      'auto-btn': '⚡ Auto-install via Termux',
+      'hint-line1': 'On Linux / VPS / Termux:',
+      'hint-line2': 'Same Wi-Fi — get your IP with hostname -I · default port 8787',
+      tagline: 'self-hosted mcp executor',
+      noTermux: "No Termux? Install it from F-Droid or Play Store and reopen the app.",
+      sentTermux: '⚙️ Sending the install command to Termux… (grant RUN_COMMAND if asked)',
+      installing: '⏳ Auto-installing ({s}s) — downloading Node + building registry + auto-boot…',
+      tooLong: "⚠️ Still nothing after a while. Open Termux to check logs, or verify the RUN_COMMAND permission.",
+      refused: 'Termux refused: {m} — open Termux manually and paste the command below.',
+      notReach: 'Cannot reach {u} — check IP/port, same Wi-Fi, and that the server is running.',
+      connecting: 'Auto-connecting to {u} …'
+    }
+  };
+  function t(k) {
+    var lang = 'vi';
+    try { lang = localStorage.getItem(LANG_KEY) || (navigator.language || '').slice(0,2) === 'en' ? (localStorage.getItem(LANG_KEY) || 'en') : 'vi'; } catch (e) {}
+    return (I18N[lang] && I18N[lang][k]) || I18N.vi[k] || k;
   }
+  window.__applyLauncherLang = function () {
+    document.querySelectorAll('[data-i18n]').forEach(function (el) { el.textContent = t(el.getAttribute('data-i18n')); });
+    $('#tagline').textContent = t('tagline');
+  };
+
+  var $ = function (s) { return document.querySelector(s); };
+  var addr = $('#addr'), err = $('#err'), btn = $('#go'), status = $('#status');
+  var INSTALL_CMD = 'curl -fsSL https://raw.githubusercontent.com/article-hub-studio/harness-executor/main/install.sh | bash -s -- --daemon --port 8787';
+  var plugin = null;
+  try { plugin = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.TermuxRun; } catch (e) {}
+
+  function say(html) { status.innerHTML = html; }
+  function showForm(msg) {
+    say('');
+    $('#f').style.display = 'block';
+    $('#auto-card').style.display = 'block';
+    $('#hint').style.display = 'block';
+    if (msg) { err.textContent = msg; err.style.display = 'block'; }
+    try { var saved = localStorage.getItem(KEY); if (saved) addr.value = saved; } catch (e) {}
+    if (plugin) {
+      plugin.isTermuxAvailable().then(function (r) {
+        $('#btn-termux').style.display = (r && r.available) ? 'block' : 'none';
+        if (!r || !r.installed) {
+          var d = document.createElement('div');
+          d.style.cssText = 'opacity:.75;margin-top:6px';
+          d.textContent = t('noTermux');
+          $('#auto-desc').appendChild(d);
+        }
+      }).catch(function () {});
+    } else {
+      $('#btn-termux').style.display = 'none';
+    }
+  }
+
+  function probe(base) {
+    return fetch(base + '/api/status', { signal: AbortSignal.timeout(2500) })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { return (j && j.ok === true) ? base : null; })
+      .catch(function () { return null; });
+  }
+
+  function go(base) {
+    say('<span class="spin"></span>' + t('connecting').replace('{u}', base.replace(/^https?:\/\//, '')));
+    try { localStorage.setItem(KEY, base); } catch (e) {}
+    setTimeout(function () { location.replace(base); }, 400);
+  }
+
+  async function autoConnect() {
+    var candidates = [];
+    try { var saved = localStorage.getItem(KEY); if (saved) candidates.push(saved); } catch (e) {}
+    candidates.push('http://127.0.0.1:8787', 'http://localhost:8787', 'http://10.0.2.2:8787');
+    for (var i = 0; i < candidates.length; i++) {
+      var found = await probe(candidates[i]);
+      if (found) { go(found); return true; }
+    }
+    return false;
+  }
+
+  // ---- CÀI TỰ ĐỘNG QUA TERMUX ----
+  $('#btn-termux').addEventListener('click', function () {
+    if (!plugin) return;
+    btn.disabled = true;
+    say(t('sentTermux'));
+    plugin.run({ command: INSTALL_CMD }).then(function () {
+      var tries = 0, max = 60;
+      var timer = setInterval(async function () {
+        tries++;
+        say(t('installing').replace('{s}', Math.round(tries * 1.5)));
+        var okUrl = await probe('http://127.0.0.1:8787');
+        if (okUrl) { clearInterval(timer); go(okUrl); }
+        else if (tries >= max) {
+          clearInterval(timer);
+          say(t('tooLong'));
+          btn.disabled = false; showForm();
+        }
+      }, 1500);
+    }).catch(function (e) {
+      say('');
+      err.textContent = t('refused').replace('{m}', e && e.message ? e.message : '?');
+      err.style.display = 'block';
+      btn.disabled = false; showForm();
+    });
+  });
+
   $('#f').addEventListener('submit', function (ev) {
     ev.preventDefault();
     var v = addr.value.trim().replace(/\/+$/, '');
+    if (!v) return;
     if (!/^https?:\/\//.test(v)) v = 'http://' + v;
-    err.style.display = 'none';
     btn.disabled = true;
-    btn.innerHTML = '<span class="spin"></span>Đang kết nối…';
-    fetch(v + '/api/status', { signal: AbortSignal.timeout(6000) })
-      .then(function (r) { return r.json(); })
-      .then(function (j) {
-        if (!j || j.ok !== true) throw new Error('không phải harness server');
-        try { localStorage.setItem(KEY, v); } catch (e2) {}
-        location.replace(v);
-      })
-      .catch(function (e) {
-        btn.disabled = false;
-        btn.textContent = 'Kết nối';
-        err.textContent = 'Không kết nối được: ' + (e && e.message ? e.message : 'lỗi mạng') + ' — kiểm tra IP/cổng và cùng Wi-Fi.';
+    probe(v).then(function (okUrl) {
+      btn.disabled = false;
+      if (okUrl) go(okUrl);
+      else {
+        err.textContent = t('notReach').replace('{u}', v);
         err.style.display = 'block';
-      });
+      }
+    });
   });
+
+  window.__applyLauncherLang();
+  autoConnect().then(function (found) { if (!found) showForm(); });
 })();
 </script>
 </body>

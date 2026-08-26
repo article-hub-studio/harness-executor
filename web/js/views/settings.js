@@ -8,6 +8,7 @@
    (4) About: version, stack, credit upio labs.
    ============================================================ */
 import { api, listen, esc, toast, store, fmtClock, refreshModels, icon, applyTheme, isDark } from '../app.js';
+import { getLang, setLang } from '../../i18n.js';
 
 export async function render(el) {
   el.innerHTML = `
@@ -40,6 +41,17 @@ export async function render(el) {
           <div class="check-row" style="justify-content:space-between">
             <b style="display:inline-flex;align-items:center;gap:8px">${icon('solar/moon', 'ic-sm')} Chế độ tối (dark theme)</b>
             <span class="switch"><input type="checkbox" id="theme-toggle"><span class="track"></span></span>
+          </div>
+        </div>
+
+        <!-- Ngôn ngữ / Language -->
+        <div class="card pad" style="margin-top:14px">
+          <div class="check-row" style="justify-content:space-between">
+            <b style="display:inline-flex;align-items:center;gap:8px">${icon('blade/globe', 'ic-sm')} <span id="lang-label">Ngôn ngữ / Language</span></b>
+            <span class="segmented" id="lang-seg" style="display:inline-flex;border:1px solid var(--border-strong);border-radius:var(--r-md);overflow:hidden">
+              <button type="button" data-lang="vi" style="padding:7px 14px;font-size:12.5px;font-weight:700;background:${getLang() === 'vi' ? 'var(--text)' : 'transparent'};color:${getLang() === 'vi' ? 'var(--bg)' : 'var(--text)'};border:0;cursor:pointer">🇻🇳 VI</button>
+              <button type="button" data-lang="en" style="padding:7px 14px;font-size:12.5px;font-weight:700;background:${getLang() === 'en' ? 'var(--text)' : 'transparent'};color:${getLang() === 'en' ? 'var(--bg)' : 'var(--text)'};border:0;cursor:pointer">🇬🇧 EN</button>
+            </span>
           </div>
         </div>
       </section>
@@ -108,7 +120,7 @@ export async function render(el) {
             <div><span class="k">Stack</span><span>Vanilla ES modules · CSS thuần · zero-dependency Node</span></div>
             <div><span class="k">Registry</span><span>${esc(String(store.counts.mcps || '98'))} MCPs · ${esc(String(store.counts.plugins || '143'))} plugins · ${esc(String(store.counts.skills || '41'))} skills</span></div>
             <div><span class="k">Credit</span><span>© upio labs<span class="wm-dot" style="margin-left:2px"></span></span></div>
-            <div><span class="k">Repo</span><a href="https://github.com/article-hub-studio/upio-mcp-executor-harness" target="_blank" rel="noopener noreferrer">github.com/article-hub-studio/upio-mcp-executor-harness ${icon('blade/external', 'ic-xs')}</a></div>
+            <div><span class="k">Repo</span><a href="https://github.com/article-hub-studio/harness-executor" target="_blank" rel="noopener noreferrer">github.com/article-hub-studio/harness-executor ${icon('blade/external', 'ic-xs')}</a></div>
           </div>
         </div>
       </section>
@@ -224,6 +236,14 @@ export async function render(el) {
     themeFxTimer = setTimeout(() => document.documentElement.classList.remove('theming'), 420);
     applyTheme(themeBtn.checked);
     toast(themeBtn.checked ? 'Dark theme' : 'Light theme', 'info');
+  });
+
+  /* ---- Ngôn ngữ VI/EN: đổi → render lại view hiện tại ---- */
+  $('#lang-seg')?.addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-lang]');
+    if (!b) return;
+    setLang(b.dataset.lang);
+    location.reload();
   });
 
   /* ================= SHOW/HIDE API KEY ================= */

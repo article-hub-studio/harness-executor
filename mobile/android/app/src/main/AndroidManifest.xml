@@ -39,4 +39,6 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Tự động cài Harness qua Termux (RUN_COMMAND service) -->
+    <uses-permission android:name="com.termux.permission.RUN_COMMAND" />
 </manifest>

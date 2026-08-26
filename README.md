@@ -1,11 +1,11 @@
 # ⚡ Harness Executor
 
-<a href="https://github.com/article-hub-studio"><img src="https://github.com/article-hub-studio.png?size=56" width="40" height="40" alt="author avatar" style="border-radius:50%"></a> **by article-hub-studio** (upio labs) · [Releases](https://github.com/article-hub-studio/upio-mcp-executor-harness/releases) · APK Android ký sẵn
+<a href="https://github.com/article-hub-studio"><img src="https://github.com/article-hub-studio.png?size=56" width="40" height="40" alt="author avatar" style="border-radius:50%"></a> **by article-hub-studio** (upio labs) · [Releases](https://github.com/article-hub-studio/harness-executor/releases) · APK Android ký sẵn
 
 Self-hosted **MCP control plane** chạy 1 lệnh trên Linux / VPS / macOS / Termux — không cần máy tính từ xa riêng:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/article-hub-studio/upio-mcp-executor-harness/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/article-hub-studio/harness-executor/main/install.sh | bash
 ```
 
 WebUI mobile-first (PWA + APK) · backend Node.js **zero-dependency**:
@@ -66,12 +66,20 @@ Tab **Term** (kiểu agent tự động như OpenClaw/anyclaw):
   - 🔴 *Luôn cấm* (`rm -rf /`, `mkfs`, `dd if=`, fork bomb, shutdown…) → chặn trước khi chạy
 - **Shizuku** (Android/Termux): bật trong Settings hoặc checkbox trong Term → lệnh chạy qua `rish` với quyền shell cao không cần root. Hướng dẫn cài ngay trong Settings → Shizuku.
 
+## 🌐 Song ngữ VI / EN
+Mở **Settings → Ngôn ngữ / Language** → chọn 🇬🇧 EN để chuyển toàn bộ giao diện sang tiếng Anh (VI là mặc định). APK launcher tự dò ngôn ngữ máy.
+
+## 📱 Mở app là TỰ ĐỘNG (APK)
+1. Mở app → **tự dò** server đã lưu · `127.0.0.1:8787` (Termux cùng máy) → thấy là **tự kết nối**, khỏi gõ gì
+2. Chưa có server? Card **"Cài tự động qua Termux"** hiện sẵn → bấm 1 nút: app gửi lệnh cài vào Termux qua RUN_COMMAND (cấp quyền lần đầu) → **tự tạo environment + tự chạy lệnh + auto-boot + tự connect** (~90s lần đầu)
+3. Lần sau mở app: server chạy nền sẵn → vào thẳng giao diện điều khiển
+
 ## 🖥 Self-host 1 lệnh — không cần máy tính riêng
 
 Chạy thẳng trên **Linux / VPS / macOS / Termux (chính điện thoại Android)**:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/article-hub-studio/upio-mcp-executor-harness/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/article-hub-studio/harness-executor/main/install.sh | bash
 ```
 
 Script tự làm mọi thứ: kiểm tra/cài Node.js ≥20 (apt · dnf · pacman · brew · Termux pkg · binary tĩnh),

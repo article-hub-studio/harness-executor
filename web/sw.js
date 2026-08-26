@@ -2,7 +2,7 @@
  * Cache-first cho static same-origin KHÔNG phải /api hay /v1; còn lại → network thẳng.
  * Có cập nhật nền (stale-while-revalidate) và dọn cache cũ khi activate.
  */
-const CACHE = 'upio-web-v6';
+const CACHE = 'upio-web-v7';
 
 const PRECACHE = [
   './',
@@ -14,6 +14,7 @@ const PRECACHE = [
   './js/icons.js',
   './js/md.js',
   './js/views/term.js',
+  './js/i18n.js',
   './js/views/home.js',
   './js/views/hub.js',
   './js/views/agents.js',
