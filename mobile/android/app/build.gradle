@@ -1,19 +1,30 @@
 apply plugin: 'com.android.application'
 
 // upio: ký APK tự động — keystore từ env (CI secrets), thiếu thì fallback debug signing
-def upioStoreFile = System.getenv("UPPIO_STORE_FILE")
+def _storePath = System.getenv("UPPIO_STORE_FILE")
+def _useUpioKey = (_storePath != null && !_storePath.trim().isEmpty() && file(_storePath).exists())
+def _vcRaw = System.getenv("UPIO_VERSION_CODE")
+def _vc = (_vcRaw != null && _vcRaw.trim().isInteger()) ? _vcRaw.trim().toInteger() : 1
+def _vnRaw = System.getenv("UPIO_VERSION_NAME")
+def _vn = (_vnRaw != null && !_vnRaw.trim().isEmpty()) ? _vnRaw.trim() : '1.0.0'
 
 android {
     namespace "com.upio.executor"
     compileSdk rootProject.ext.compileSdkVersion
 
     signingConfigs {
-        if (upioStoreFile != null && file(upioStoreFile).exists()) {
-            upio {
-                storeFile file(upioStoreFile)
-                storePassword System.getenv("UPPIO_STORE_PASSWORD")
-                keyAlias System.getenv("UPPIO_KEY_ALIAS")
-                keyPassword System.getenv("UPPIO_KEY_PASSWORD")
+        upio {
+            if (_useUpioKey) {
+                storeFile file(_storePath)
+                storePassword (System.getenv("UPPIO_STORE_PASSWORD") ?: '')
+                keyAlias (System.getenv("UPPIO_KEY_ALIAS") ?: 'upio')
+                keyPassword (System.getenv("UPPIO_KEY_PASSWORD") ?: '')
+            } else {
+                // placeholder — release sẽ dùng debug key khi không có keystore CI
+                storeFile file('upio-unused.jks')
+                storePassword ''
+                keyAlias ''
+                keyPassword ''
             }
         }
     }
@@ -22,8 +33,8 @@ android {
         applicationId "com.upio.executor"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode (System.getenv("UPIO_VERSION_CODE") ?: "1").toInteger()
-        versionName System.getenv("UPIO_VERSION_NAME") ?: "1.0.0"
+        versionCode _vc
+        versionName _vn
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -36,7 +47,7 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             // upio: keystore CI nếu có, không thì dùng debug key (vẫn cài được lên máy)
-            signingConfig (upioStoreFile != null && file(upioStoreFile).exists()) ? signingConfigs.upio : signingConfigs.debug
+            signingConfig (_useUpioKey ? signingConfigs.upio : signingConfigs.debug)
         }
     }
 }
