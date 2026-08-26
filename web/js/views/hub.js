@@ -28,7 +28,23 @@ const CAT_ICONS = {
   automation: 'solar/zap', devtools: 'solar/terminal', ai: 'solar/cpu', web: 'solar/globe',
   system: 'solar/server', data: 'solar/database', networking: 'solar/link', text: 'solar/file',
   tools: 'solar/wrench', prompt: 'solar/chat',
+  /* server thật */
+  real: 'blade/bolt',
 };
+
+/** Nhãn hiển thị của category ('real' → 'Thật'). */
+const catLabel = (c) => (String(c) === 'real' ? 'Thật' : String(c ?? ''));
+
+/** Icon trong data là emoji (server thật) hay SVG name → render tương ứng. */
+function itemIcon(it, fallbackSvg) {
+  if (!it.icon) return icon(fallbackSvg, '');
+  return /\p{Extended_Pictographic}/u.test(it.icon)
+    ? `<span class="emo">${esc(it.icon)}</span>`
+    : icon(it.icon, '');
+}
+
+/* Env đã lưu cho server thật (local flag khi API không trả envKeys) */
+const envSavedMap = new Map(); // `${id}:${key}` → true
 
 export async function render(el) {
   state.limit = 40;
@@ -102,10 +118,10 @@ export async function render(el) {
       : [...new Set(state[state.tab].map((x) => x.category))];
     const cats = ['All', ...src.filter(Boolean).slice(0, 12)];
     $('hub-chips').innerHTML = cats.map((c) => {
-      const icName = CAT_ICONS[c.toLowerCase()];
+      const icName = c === 'All' ? '' : CAT_ICONS[String(c).toLowerCase()];
       const active = c === state.cat || (c === 'All' && !state.cat);
       return `<button type="button" class="chip ${active ? 'active' : ''}" data-cat="${esc(c)}">` +
-        `${icName ? icon(icName, 'ic-xs') : ''}${esc(c)}</button>`;
+        `${icName ? icon(icName, 'ic-xs') : ''}${esc(c === 'All' ? 'All' : catLabel(c))}</button>`;
     }).join('');
   }
 
@@ -114,13 +130,15 @@ export async function render(el) {
     const chev = `<span class="rc-chevron">${icon('blade/chevr', 'ic-sm')}</span>`;
     if (state.tab === 'mcps') {
       const connected = it.state === 'connected';
+      const realBadge = it.real ? `<span class="badge real-badge">REAL</span>` : '';
+      const featured = it.featured ? ' featured' : '';
       return `
-        <button type="button" class="card row-card" data-id="${esc(it.id)}">
-          <span class="rc-icon">${it.icon ? esc(it.icon) : icon('solar/server', '')}</span>
+        <button type="button" class="card row-card${featured}" data-id="${esc(it.id)}">
+          <span class="rc-icon">${itemIcon(it, 'solar/server')}</span>
           <span class="rc-main">
-            <span class="rc-top"><b>${esc(it.name)}</b><span class="badge mini">${esc(fmtNum(it.stars))} sao</span></span>
+            <span class="rc-top"><b>${esc(it.name)}</b>${realBadge}<span class="badge mini">${esc(fmtNum(it.stars))} sao</span></span>
             <span class="rc-desc">${esc(it.description)}</span>
-            <span class="rc-meta">${stMark(connected ? 'connected' : 'disconnected')}${esc(it.category)} · v${esc(it.version)} · ${(it.tools || []).length} tools</span>
+            <span class="rc-meta">${stMark(connected ? 'connected' : 'disconnected')}${esc(catLabel(it.category))} · v${esc(it.version)} · ${(it.tools || []).length} tools</span>
           </span>
           ${chev}
         </button>`;
@@ -128,7 +146,7 @@ export async function render(el) {
     if (state.tab === 'plugins') {
       return `
         <button type="button" class="card row-card" data-id="${esc(it.id)}">
-          <span class="rc-icon">${it.icon ? esc(it.icon) : icon('solar/puzzle', '')}</span>
+          <span class="rc-icon">${itemIcon(it, 'solar/puzzle')}</span>
           <span class="rc-main">
             <span class="rc-top"><b>${esc(it.name)}</b><span class="badge mini">${it.enabled ? 'ON' : 'OFF'}</span></span>
             <span class="rc-desc">${esc(it.description)}</span>
@@ -139,7 +157,7 @@ export async function render(el) {
     }
     return `
       <button type="button" class="card row-card" data-id="${esc(it.id)}">
-        <span class="rc-icon">${it.icon ? esc(it.icon) : icon('blade/sparkles', '')}</span>
+        <span class="rc-icon">${itemIcon(it, 'blade/sparkles')}</span>
         <span class="rc-main">
           <span class="rc-top"><b>${esc(it.name)}</b><span class="badge mini inv">${(it.steps || []).length} bước</span></span>
           <span class="rc-desc">${esc(it.description)}</span>
@@ -216,18 +234,34 @@ export async function render(el) {
     badge.innerHTML = `${stMark(st === 'connected' ? 'connected' : st === 'error' ? 'fail' : 'disconnected')}${esc(stateLabel(item.state))}`;
   }
 
-  function openMcpSheet(item) {
-    const panel = openSheet(`
+  async function openMcpSheet(listItem) {
+    const panel = openSheet(`<div class="empty" style="display:flex;gap:10px;justify-content:center;align-items:center;padding:34px"><span class="spin"></span> Đang tải chi tiết…</div>`);
+    let item = listItem;
+    // Server thật: lấy detail mới (có installed / envKeys / needsEnv)
+    if (listItem.real) {
+      try {
+        const d = await api.mcp(listItem.id);
+        Object.assign(listItem, d);
+      } catch (err) {
+        panel.querySelector('.sheet-body').innerHTML =
+          `<div class="empty"><div class="empty-ico">${icon('blade/error', 'ic-lg')}</div><b>${esc(err.message)}</b></div>`;
+        return;
+      }
+    }
+    const body = panel.querySelector('.sheet-body');
+    body.innerHTML = `
       <div class="sheet-head">
-        <span class="rc-icon">${item.icon ? esc(item.icon) : icon('solar/server', '')}</span>
+        <span class="rc-icon">${itemIcon(item, 'solar/server')}</span>
         <div style="min-width:0">
-          <div class="sheet-title">${esc(item.name)}</div>
-          <div class="sheet-sub">by ${esc(item.author || 'upio')} · v${esc(item.version)} · ${esc(item.transport || 'builtin')}</div>
+          <div class="sheet-title">${esc(item.name)}${item.real ? ' <span class="badge real-badge">REAL</span>' : ''}</div>
+          <div class="sheet-sub">by ${esc(item.author || 'upio')} · v${esc(item.version)} · ${esc(item.transport || 'builtin')}${item.install ? ` · ${esc(item.install.method)}` : ''}</div>
         </div>
       </div>
       <div class="tag-row">${(item.tags || []).map((t) => `<span class="badge mini">#${esc(t)}</span>`).join('')}
         <span class="badge mini">${esc(fmtNum(item.stars))} sao</span></div>
       <p class="sheet-desc">${esc(item.description)}</p>
+      ${!item.installed && item.install && item.install.repo ? `<p class="dim" style="font-size:12.5px;margin:-2px 0 8px;display:flex;gap:6px;align-items:baseline">${icon('blade/warn', 'ic-xs')} Server chưa được cài trên máy này — cần tải &amp; build từ repo trước khi kết nối.</p>` : ''}
+      <div class="sheet-sec hidden" id="mcp-install-area"></div>
       <div class="sheet-sec">
         <div class="form-grid cols-2">
           <div class="field"><label>Trạng thái</label>
@@ -235,29 +269,167 @@ export async function render(el) {
           </div>
           <div class="field"><label>&nbsp;</label>
             <button type="button" class="btn block primary" id="mcp-toggle-btn"></button>
+            <div class="field-hint dim hidden" id="mcp-install-hint">Cài đặt trước khi kết nối</div>
           </div>
         </div>
       </div>
+      <div class="sheet-sec hidden" id="mcp-env-area"></div>
       <div class="sheet-sec" id="mcp-tools-area"></div>
-      <div class="sheet-sec hidden" id="mcp-invoke-area"></div>`);
+      <div class="sheet-sec hidden" id="mcp-invoke-area"></div>`;
 
     const tools = () => item.tools || [];
 
+    /* ----- Cài đặt server thật (git clone + build), log stream qua SSE ----- */
+    function pushInstallLine(box, text) {
+      const div = document.createElement('div');
+      div.className = 'ln lvl-info';
+      div.textContent = String(text ?? '');
+      box.appendChild(div);
+      while (box.children.length > 200) box.firstElementChild.remove(); // tối đa 200 dòng
+      box.scrollTop = box.scrollHeight;
+    }
+
+    async function runInstall(btn) {
+      const area = body.querySelector('#mcp-install-area');
+      const wrap = area.querySelector('#mcp-install-log-wrap');
+      const con = area.querySelector('#mcp-install-console');
+      wrap.classList.remove('hidden');
+      con.innerHTML = '';
+      btn.classList.add('loading');
+      btn.disabled = true;
+
+      const offs = [];
+      onSheetClose(() => offs.forEach((f) => f()));
+      // Log stream: SSE event 'log' với payload.install === true
+      offs.push(listen('log', (evt) => {
+        if (!evt || evt.install !== true || !con.isConnected) return;
+        pushInstallLine(con, evt.line ?? evt.detail ?? JSON.stringify(evt));
+      }));
+
+      try {
+        const r = await api.installMcp(item.id); // → {ok, logs}
+        if (r && Array.isArray(r.logs)) r.logs.forEach((l) => con.isConnected && pushInstallLine(con, l));
+      } catch (err) {
+        if (con.isConnected) pushInstallLine(con, `[lỗi] ${err.message}`);
+        toast(err.message, 'error');
+      } finally {
+        btn.classList.remove('loading');
+        // Cài xong (dù lỗi): GET lại detail để cập nhật installed
+        try {
+          const d = await api.mcp(item.id);
+          Object.assign(listItem, d);
+        } catch { /* giữ trạng thái cũ */ }
+        redrawSheet();
+        toast(item.installed === false
+          ? `${item.name}: cài đặt chưa hoàn tất`
+          : `${item.name}: đã cài xong — có thể kết nối`, item.installed === false ? 'warn' : 'ok');
+      }
+    }
+
+    function drawInstallArea() {
+      const area = body.querySelector('#mcp-install-area');
+      const need = item.real && item.installed === false && item.install && item.install.method === 'git-clone';
+      if (!need) { area.classList.add('hidden'); area.innerHTML = ''; return; }
+      area.classList.remove('hidden');
+      area.innerHTML = `
+        <h4>Cài đặt</h4>
+        <button type="button" class="btn primary block" id="mcp-install-btn">${icon('blade/download', 'ic-sm')} Tải &amp; build</button>
+        <div id="mcp-install-log-wrap" class="hidden" style="margin-top:10px">
+          <div class="console" id="mcp-install-console" aria-live="polite"></div>
+        </div>`;
+      area.querySelector('#mcp-install-btn').addEventListener('click', (e) => runInstall(e.currentTarget));
+    }
+
     function drawToggleBtn(btn) {
       const connected = item.state === 'connected';
-      btn.innerHTML = connected
-        ? `${icon('blade/disconnect', 'ic-sm')} Disconnect`
-        : `${icon('blade/connect', 'ic-sm')} Connect`;
-      btn.className = `btn block ${connected ? 'ghost' : 'primary'}`;
+      const needsInstall = item.real && item.installed === false;
+      btn.disabled = needsInstall;
+      btn.innerHTML = needsInstall
+        ? `${icon('blade/lock', 'ic-sm')} Cài đặt trước`
+        : connected
+          ? `${icon('blade/disconnect', 'ic-sm')} Disconnect`
+          : `${icon('blade/connect', 'ic-sm')} Connect`;
+      btn.className = `btn block ${needsInstall ? 'ghost' : connected ? 'ghost' : 'primary'}`;
+      body.querySelector('#mcp-install-hint').classList.toggle('hidden', !needsInstall);
+    }
+
+    /* ----- Biến môi trường cho server thật (needsEnv) ----- */
+    const keySaved = (k) =>
+      envSavedMap.has(`${item.id}:${k}`) ||
+      (Array.isArray(item.envKeys) && item.envKeys.includes(k));
+
+    function drawEnvArea() {
+      const box = body.querySelector('#mcp-env-area');
+      const keys = item.needsEnv || [];
+      if (!keys.length) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+      box.classList.remove('hidden');
+      box.innerHTML = `<h4>Biến môi trường</h4>` + keys.map((k) => {
+        const saved = keySaved(k);
+        return `
+        <div class="env-key-row" data-key="${esc(k)}">
+          <div class="env-key-head"><span class="mono">${esc(k)}</span>
+            <span class="badge mini key-status ${saved ? 'ok' : 'warn'}">${saved ? `${icon('blade/check', 'ic-xs')} đủ` : `${icon('blade/warn', 'ic-xs')} thiếu`}</span></div>
+          <div class="key-input">
+            <input class="input mono" type="password" data-envkey="${esc(k)}" placeholder="dán giá trị ${esc(k)}…" autocomplete="off">
+            <button type="button" class="key-eye" aria-label="Hiện/ẩn giá trị">${icon('blade/eye', 'ic-sm')}</button>
+          </div>
+        </div>`;
+      }).join('') +
+        `<button type="button" class="btn primary block" id="mcp-env-save" style="margin-top:10px">${icon('blade/key', 'ic-sm')} Lưu env</button>`;
+    }
+
+    body.addEventListener('click', async (e) => {
+      // eye toggle password cho env key
+      const eye = e.target.closest('.key-eye');
+      if (eye) {
+        const inp = eye.parentElement.querySelector('input[data-envkey]');
+        if (inp) {
+          const show = inp.type === 'password';
+          inp.type = show ? 'text' : 'password';
+          eye.innerHTML = icon(show ? 'blade/eyeoff' : 'blade/eye', 'ic-sm');
+        }
+        return;
+      }
+      // Lưu env → PUT /api/mcps/:id/env
+      const saveBtn = e.target.closest('#mcp-env-save');
+      if (saveBtn) {
+        const inputs = [...body.querySelectorAll('[data-envkey]')].filter((i) => i.value.trim());
+        if (!inputs.length) { toast('Nhập ít nhất một giá trị env', 'warn'); return; }
+        const env = {};
+        for (const i of inputs) env[i.dataset.envkey] = i.value.trim();
+        saveBtn.classList.add('loading');
+        try {
+          await api.saveMcpEnv(item.id, env);
+          for (const i of inputs) { i.value = ''; envSavedMap.set(`${item.id}:${i.dataset.envkey}`, true); }
+          toast(`Đã lưu env cho ${item.name}`, 'ok');
+          drawEnvArea();
+        } catch (err) {
+          toast(err.message, 'error');
+        } finally {
+          saveBtn.classList.remove('loading');
+        }
+      }
+    });
+
+    /** Vẽ lại mọi vùng phụ thuộc trạng thái (sau install/connect). */
+    function redrawSheet() {
+      const badge = body.querySelector('#mcp-state-badge');
+      const btn = body.querySelector('#mcp-toggle-btn');
+      if (badge) drawStateBadge(badge, item);
+      if (btn) drawToggleBtn(btn);
+      drawInstallArea();
+      drawEnvArea();
+      drawToolsArea();
     }
 
     async function toggleConnect(btn, badge) {
+      if (item.real && item.installed === false) { toast('Cài đặt server trước khi kết nối', 'warn'); return; }
       const connected = item.state === 'connected';
       btn.classList.add('loading'); // spinner ngay trong nút
       try {
         const resp = connected ? await api.disconnect(item.id) : await api.connect(item.id);
         item.state = resp.state || (connected ? 'disconnected' : 'connected');
-        if (resp.tools) item.tools = resp.tools;
+        if (resp.tools) item.tools = resp.tools; // server thật: tools thật trả về sau connect
         drawStateBadge(badge, item);
         drawToggleBtn(btn);
         drawToolsArea();
@@ -342,8 +514,12 @@ export async function render(el) {
       const area = panel.querySelector('#mcp-tools-area');
       const inv = panel.querySelector('#mcp-invoke-area');
       if (item.state !== 'connected') {
+        const preview = item.toolPreview || [];
+        const previewLine = preview.length
+          ? `<p class="dim" style="margin-top:6px">sẽ có: <span class="mono">${esc(preview.slice(0, 5).join(', '))}${preview.length > 5 ? ', …' : ''}</span></p>`
+          : '';
         area.innerHTML = `<h4>Tools</h4><div class="empty" style="padding:14px"><div class="empty-ico">${icon('solar/lock', 'ic-lg')}</div>
-          <p>Kết nối server để xem và gọi <b>${tools().length}</b> tools.</p></div>`;
+          <p>Kết nối server để xem và gọi <b>${tools().length || 'các'}</b> tools.</p>${previewLine}</div>`;
         inv.classList.add('hidden');
         inv.innerHTML = '';
         return;
@@ -410,22 +586,21 @@ export async function render(el) {
       });
     }
 
-    const tglBtn = panel.querySelector('#mcp-toggle-btn');
-    drawToggleBtn(tglBtn);
-    drawStateBadge(panel.querySelector('#mcp-state-badge'), item);
-    tglBtn.addEventListener('click', () => toggleConnect(tglBtn, panel.querySelector('#mcp-state-badge')));
-    drawToolsArea();
+    const tglBtn = body.querySelector('#mcp-toggle-btn');
+    redrawSheet();
+    tglBtn.addEventListener('click', () => toggleConnect(tglBtn, body.querySelector('#mcp-state-badge')));
   }
 
   /* ================= Sheet Plugin ================= */
   function openPluginSheet(item) {
     const panel = openSheet(`
       <div class="sheet-head">
-        <span class="rc-icon">${item.icon ? esc(item.icon) : icon('solar/puzzle', '')}</span>
+        <span class="rc-icon">${itemIcon(item, 'solar/puzzle')}</span>
         <div><div class="sheet-title">${esc(item.name)}</div>
         <div class="sheet-sub">v${esc(item.version)} · popularity ${esc(String(item.popularity ?? '—'))}</div></div>
       </div>
       <p class="sheet-desc">${esc(item.description)}</p>
+      ${item.behaviorLabel ? `<div class="tag-row" style="margin-bottom:10px"><span class="badge mini mono">Hành vi: ${esc(item.behaviorLabel)}</span></div>` : ''}
       <div class="sheet-sec"><h4>Permissions</h4>
         <div class="tag-row">${[...new Set(item.permissions || [])].map((p) => `<span class="badge mini">${icon('blade/key', 'ic-xs')} ${esc(p)}</span>`).join('') || '<span class="dim">—</span>'}</div>
       </div>

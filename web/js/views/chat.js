@@ -2,8 +2,14 @@
    upio web — view Chat: full-height giữa tab bar và header,
    bubbles user/assistant, stream typewriter qua /v1/chat/completions,
    history client-side, New chat, Enter gửi / Shift+Enter xuống dòng.
+   Assistant bubble render MARKDOWN (md.js): cộng dồn raw text,
+   re-render throttle ~120ms + con trỏ nháy cuối; kết thúc render
+   lần cuối không cursor. User bubble giữ esc()/textContent thuần.
    ============================================================ */
 import { chatCompletion, esc, listen, store, icon, toast } from '../app.js';
+import { renderMarkdown } from '../md.js';
+
+const REPAINT_MS = 120; // throttle re-render markdown khi stream
 
 export async function render(el) {
   el.innerHTML = `
@@ -48,7 +54,7 @@ export async function render(el) {
   // Làm mới model list khi status/models thay đổi
   const offModels = listen('models', () => fillModels());
 
-  /* ----- Bubble helpers (dùng textContent → an toàn XSS) ----- */
+  /* ----- Bubble helpers (user = textContent thuần; assistant = markdown) ----- */
   function addBubble(role) {
     emptyHint.classList.add('hidden');
     const div = document.createElement('div');
@@ -83,7 +89,7 @@ export async function render(el) {
     }
   });
 
-  /* ----- Gửi tin nhắn + stream typewriter ----- */
+  /* ----- Gửi tin nhắn + stream typewriter (markdown throttle) ----- */
   async function send() {
     const text = input.value.trim();
     if (!text || busy) return;
@@ -92,36 +98,60 @@ export async function render(el) {
     updateSendState();
 
     messages.push({ role: 'user', content: text });
-    addBubble('user').textContent = text;
+    addBubble('user').textContent = text; // user bubble: plain text an toàn
     stick(true);
 
     busy = true;
     updateSendState();
 
     const bubble = addBubble('assistant');
-    const txtNode = document.createTextNode('');
-    bubble.appendChild(txtNode);
-    const cursor = document.createElement('span'); // con trỏ nháy trong lúc stream
+    bubble.classList.add('md');
+
+    // Con trỏ nháy — được nhét vào cuối phần tử chứa text mới nhất mỗi lần paint
+    const cursor = document.createElement('span');
     cursor.className = 'cursor';
-    bubble.appendChild(cursor);
-    stick(true);
+
+    let raw = '';
+    let lastPaint = 0;
+    let pendTimer = null;
+
+    /** Vẽ raw text dưới dạng markdown; final=true → không gắn cursor. */
+    function paint(final) {
+      bubble.innerHTML = renderMarkdown(raw);
+      if (!final && raw) {
+        const hosts = bubble.querySelectorAll('p, li, h1, h2, h3, h4, blockquote, td, th, pre code');
+        (hosts.length ? hosts[hosts.length - 1] : bubble).appendChild(cursor);
+      }
+      stick();
+    }
 
     try {
       const content = await chatCompletion({
         model: $('chat-model').value,
         messages: [...messages], // chưa gồm assistant placeholder
         onDelta: (delta) => {
-          txtNode.textContent += delta; // typing effect realtime
+          raw += delta;
+          const now = performance.now();
+          if (now - lastPaint >= REPAINT_MS) {
+            lastPaint = now;
+            paint(false); // re-render throttle theo timestamp
+          } else if (!pendTimer) {
+            pendTimer = setTimeout(() => { pendTimer = null; lastPaint = performance.now(); paint(false); }, REPAINT_MS);
+          }
           stick();
         },
       });
-      messages.push({ role: 'assistant', content: content || txtNode.textContent });
+      raw = content || raw;
+      paint(true); // render lần cuối — không cursor
+      messages.push({ role: 'assistant', content: raw });
     } catch (err) {
       if (!(err && err.name === 'AbortError')) {
-        bubble.classList.add('error'); // bubble lỗi
-        txtNode.textContent += (txtNode.textContent ? '\n\n' : '') + `Lỗi: ${err.message}`;
+        bubble.classList.add('error'); // bubble lỗi: markdown đã có + dòng lỗi plain
+        bubble.innerHTML = renderMarkdown(raw) +
+          `<p class="err-line">Lỗi: ${esc(err.message)}</p>`;
       }
     } finally {
+      clearTimeout(pendTimer);
       cursor.remove();
       busy = false;
       updateSendState();

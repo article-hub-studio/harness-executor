@@ -8,7 +8,7 @@ import path from 'node:path';
  * @typedef {import('../types.js').Skill} Skill
  */
 
-/** @typedef {{plugins?:Record<string,{enabled:boolean}>, mcps?:Record<string,{state:string}>}} StateOverrides */
+/** @typedef {{plugins?:Record<string,{enabled:boolean}>, mcps?:Record<string,{state?:string, env?:Record<string,string>}>}} StateOverrides */
 /** @typedef {{q?:string, category?:string, status?:string}} RegistryFilter */
 
 export async function loadRegistries(dataDir) {
@@ -143,8 +143,38 @@ export class Registry {
     const m = this.mcp(id);
     if (!m) return;
     m.state = state === 'connected' ? 'connected' : 'disconnected';
-    this._state.mcps[id] = { state: m.state };
+    // giữ nguyên các field khác của state entry (vd env do setMcpEnv ghi)
+    this._state.mcps[id] = { ...(this._state.mcps[id] ?? {}), state: m.state };
     void this._persistState();
+  }
+
+  /**
+   * Gộp env người dùng cấu hình cho một MCP (merge vào state.json mcps[id].env) + persist.
+   * @param {string} id @param {Record<string,string>} [envObj]
+   * @returns {Record<string,string>} env sau khi gộp
+   */
+  setMcpEnv(id, envObj = {}) {
+    this._ensureInit();
+    const m = this.mcp(id);
+    if (!m || !envObj || typeof envObj !== 'object' || Array.isArray(envObj)) {
+      return this.getMcpEnv(id);
+    }
+    const cur = this._state.mcps[id] ?? {};
+    const env = { ...(cur.env ?? {}) };
+    for (const [k, v] of Object.entries(envObj)) {
+      if (v == null) delete env[k]; // giá trị null/undefined → xoá key
+      else env[k] = String(v);
+    }
+    this._state.mcps[id] = { ...cur, env };
+    void this._persistState();
+    return { ...env };
+  }
+
+  /** Env người dùng đã cấu hình cho MCP ({} mặc định). */
+  getMcpEnv(id) {
+    this._ensureInit();
+    const env = this._state.mcps?.[id]?.env;
+    return env && typeof env === 'object' ? { ...env } : {};
   }
 
   /** @returns {Skill[]} */

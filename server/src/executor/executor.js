@@ -1,11 +1,14 @@
-// executor.js — lõi MCP Executor: connect/disconnect/invoke + plugin pipeline + skills. SPEC §5.3
+// executor.js — lõi MCP Executor: connect/disconnect/invoke + plugin pipeline (kèm BEHAVIORS)
+// + skills + hỗ trợ MCP THẬT (real:true: install/connect/gate approved). Xem docs/SPEC.md §5.3
 import { EventEmitter } from 'node:events';
 import { appendFile, mkdir } from 'node:fs/promises';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { Registry } from '../registry/registry.js';
 import { createBuiltinTransport, createStdioTransport, createHttpTransport } from './mcp-client.js';
+import { BEHAVIORS } from './plugin-behaviors.js';
 
 /** @typedef {import('../types.js').ToolResult} ToolResult */
 /** @typedef {import('../types.js').McpTool} McpTool */
@@ -13,6 +16,13 @@ import { createBuiltinTransport, createStdioTransport, createHttpTransport } fro
 
 const INVOKE_TIMEOUT_MS = 15_000;
 const AUDIT_TAIL = 20;
+const INSTALL_TIMEOUT_MS = 10 * 60_000; // 10 phút cho clone/build server thật
+const LIST_TOOLS_TIMEOUT_MS = 90_000;   // tools/list cho server thật (npx cold-start có thể chậm)
+/**
+ * Whitelist tool "đọc-an toàn" cho MCP thật: không cần ctx.approved.
+ * Mọi tool khác trên server real → bắt buộc approved=true.
+ */
+const SAFE_TOOL_RX = /^(list[-_]|get[-_]|search|semantic|script-grep)/i;
 
 const clip = (v, n) => {
   const s = String(v ?? '');
@@ -41,11 +51,14 @@ function substituteDeep(value, input, observationsText) {
 }
 
 export class Executor extends EventEmitter {
-  /** @param {{dataDir:string, modelHub?:object}} opts */
+  /** @param {{dataDir:string, rootDir?:string, modelHub?:object, rebuild?:boolean}} opts */
   constructor(opts = {}) {
     super();
     this.opts = opts;
     this.dataDir = opts.dataDir;
+    /** Path gốc dự án (cho MCP thật: clone dir, workspace, args tương đối). */
+    this.rootDir = opts.rootDir
+      ?? (this.dataDir ? path.resolve(this.dataDir, '..') : process.cwd());
     /** ModelHub được inject qua opts (async chat({messages,model,temperature,stream}, onChunk)). */
     this.modelHub = opts.modelHub ?? null;
     this.registry = new Registry(this.dataDir);
@@ -73,6 +86,146 @@ export class Executor extends EventEmitter {
 
   // ------------------------------------------------------------- MCP
 
+  /** @returns {(McpDescriptor&{state:string})|null} descriptor nếu server là MCP THẬT (real:true). */
+  _realDesc(id) {
+    const desc = this.registry.mcp(id);
+    return desc && desc.real === true ? desc : null;
+  }
+
+  /**
+   * Server thực đã cài chưa? git-clone → kiểm tra file entry; npx/server thường → coi là có.
+   * @param {string} id @returns {Promise<boolean>}
+   */
+  async isRealInstalled(id) {
+    this._ensureReady();
+    const desc = this._realDesc(id);
+    if (!desc) return false;
+    const install = desc.install ?? {};
+    if (install.method === 'git-clone') {
+      if (!install.dir) return false;
+      return existsSync(path.join(this.rootDir, install.dir, install.entry ?? 'dist/index.js'));
+    }
+    return true; // npx / phương thức khác → không cần bản cài đặt local trước
+  }
+
+  /** Spawn process, stream TỪNG DÒNG stdout/stderr qua log(), kill khi vượt timeout. */
+  _streamProc(command, argsArr, { cwd, timeoutMs = INSTALL_TIMEOUT_MS }, log) {
+    return new Promise((resolve) => {
+      let child;
+      try {
+        child = spawn(command, argsArr, { cwd, env: process.env });
+      } catch (e) {
+        log('error', `spawn '${command}' lỗi: ${e?.message ?? e}`);
+        resolve({ ok: false, code: -1 });
+        return;
+      }
+      let settled = false;
+      let timer;
+      const fin = (r) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(r);
+      };
+      timer = setTimeout(() => {
+        log('error', `timeout sau ${Math.round(timeoutMs / 1000)}s — kill '${command}'`);
+        try { child.kill('SIGKILL'); } catch { /* ignore */ }
+        fin({ ok: false, code: null, timedOut: true });
+      }, timeoutMs);
+      timer.unref?.();
+      const pipe = (stream, level) => {
+        if (!stream) return;
+        let b = '';
+        stream.setEncoding('utf8');
+        stream.on('data', (d) => {
+          b += d;
+          let i;
+          while ((i = b.indexOf('\n')) >= 0) {
+            const line = b.slice(0, i).trim();
+            b = b.slice(i + 1);
+            if (line) log(level, line);
+          }
+        });
+        stream.on('end', () => { const rest = b.trim(); if (rest) log(level, rest); });
+      };
+      pipe(child.stdout, 'info');
+      pipe(child.stderr, 'warn');
+      child.on('error', (e) => fin({ ok: false, code: -1, error: e }));
+      child.on('exit', (code) => fin({ ok: code === 0, code }));
+    });
+  }
+
+  /**
+   * Cài server THẬT (chỉ hỗ trợ git-clone): git clone --depth 1 → chạy install.build
+   * qua `bash -lc` tại dir; stream từng dòng log qua emit('log',{level,line,payloadInstall:true}).
+   * Đã installed mà không rebuild → bỏ qua. Lỗi → {ok:false}.
+   * @param {string} id @param {Function} [emit] @param {{rebuild?:boolean}} [opts]
+   * @returns {Promise<{ok:boolean, logs:string[], skipped?:boolean|string, error?:string}>}
+   */
+  async installReal(id, emit = () => {}, opts = {}) {
+    this._ensureReady();
+    const desc = this.registry.mcp(id);
+    if (!desc) throw new Error(`MCP '${id}' không tồn tại trong registry`);
+    const logs = [];
+    const log = (level, line) => {
+      logs.push(line);
+      const payload = { level, line, payloadInstall: true };
+      try { emit('log', payload); } catch { /* emitter ngoài lỗi không làm hỏng install */ }
+      this.emit('log', payload);
+    };
+    if (desc.real !== true) {
+      log('info', `'${id}' không phải MCP thật (real:true) — bỏ qua install`);
+      return { ok: true, skipped: 'not-real', logs };
+    }
+    const install = desc.install ?? {};
+    if (install.method !== 'git-clone') {
+      log('info', `phương thức '${install.method ?? '?'}' không cần clone — bỏ qua install`);
+      return { ok: true, skipped: install.method ?? 'unknown', logs };
+    }
+    const dirAbs = path.join(this.rootDir, install.dir ?? path.join('mcp-servers', id));
+    const rebuild = opts.rebuild ?? this.opts.rebuild === true;
+    if (existsSync(dirAbs)) {
+      if (!rebuild) {
+        log('info', `đã có ${install.dir} — bỏ qua clone/build (dùng opts.rebuild=true để build lại)`);
+        return { ok: true, skipped: 'already-installed', logs };
+      }
+      log('info', `đã có ${install.dir} — bỏ qua clone, build lại theo yêu cầu`);
+    } else {
+      if (!install.repo) {
+        log('error', `thiếu install.repo cho '${id}'`);
+        return { ok: false, error: `thiếu install.repo cho '${id}'`, logs };
+      }
+      log('info', `git clone --depth 1 ${install.repo} → ${install.dir}`);
+      const r = await this._streamProc(
+        'git',
+        ['clone', '--depth', '1', install.repo, dirAbs],
+        { cwd: this.rootDir, timeoutMs: INSTALL_TIMEOUT_MS },
+        log,
+      );
+      if (!r.ok) {
+        const why = r.timedOut ? 'timeout' : `exit ${r.code ?? '?'}`;
+        log('error', `clone thất bại (${why})`);
+        return { ok: false, error: `git clone thất bại (${why})`, logs };
+      }
+    }
+    if (install.build) {
+      log('info', `build: ${install.build}`);
+      const r = await this._streamProc(
+        'bash',
+        ['-lc', install.build],
+        { cwd: dirAbs, timeoutMs: INSTALL_TIMEOUT_MS },
+        log,
+      );
+      if (!r.ok) {
+        const why = r.timedOut ? 'timeout' : `exit ${r.code ?? '?'}`;
+        log('error', `build thất bại (${why})`);
+        return { ok: false, error: `build thất bại (${why})`, logs };
+      }
+    }
+    log('info', `install '${id}' hoàn tất`);
+    return { ok: true, logs };
+  }
+
   /**
    * Kết nối tới một MCP theo descriptor trong registry.
    * @returns {Promise<{id:string, state:'connected', tools:McpTool[]}>}
@@ -86,7 +239,42 @@ export class Executor extends EventEmitter {
     }
     let transport;
     try {
-      if (desc.transport === 'stdio') {
+      if (desc.real === true) {
+        // --- MCP THẬT (stdio) ---
+        if (!(await this.isRealInstalled(id))) {
+          throw new Error(`server thực chưa được cài — gọi installReal('${id}') trước (git clone + build)`);
+        }
+        const wsDir = path.join(this.rootDir, 'workspace');
+        let needWorkspace = false;
+        const argv = (desc.args ?? []).map((raw) => {
+          let a = String(raw).replaceAll('{workspace}', wsDir); // placeholder '{workspace}'
+          if (String(raw).includes('{workspace}')) needWorkspace = true;
+          // arg tương đối nhưng tồn tại dưới rootDir (vd entry của git-clone) → tuyệt đối hoá
+          if (!path.isAbsolute(a) && existsSync(path.join(this.rootDir, a))) {
+            a = path.join(this.rootDir, a);
+          }
+          return a;
+        });
+        if (needWorkspace) await mkdir(wsDir, { recursive: true });
+        const userEnv = this.registry.getMcpEnv(id);
+        const missing = (desc.needsEnv ?? []).filter((k) => {
+          const v = process.env[k] ?? userEnv[k];
+          return v === undefined || v === null || String(v).trim() === '';
+        });
+        if (missing.length) {
+          throw new Error(`cần biến môi trường: ${missing.join(', ')} — cấu hình trong chi tiết MCP`);
+        }
+        const cwd = desc.install?.method === 'git-clone' && desc.install?.dir
+          ? path.join(this.rootDir, desc.install.dir)
+          : this.rootDir;
+        transport = createStdioTransport({
+          command: desc.command,
+          args: argv,
+          env: userEnv,
+          cwd,
+          listToolsTimeoutMs: LIST_TOOLS_TIMEOUT_MS,
+        });
+      } else if (desc.transport === 'stdio') {
         transport = createStdioTransport({ command: desc.command, args: desc.args ?? [] });
       } else if (desc.transport === 'http') {
         transport = createHttpTransport({ url: desc.url });
@@ -152,68 +340,142 @@ export class Executor extends EventEmitter {
   }
 
   /**
-   * Gọi tool qua pipeline plugin + audit.
-   * @param {string} server @param {string} tool @param {object} args @param {{source?:string, force?:boolean}} [ctx]
+   * Tra JSON Schema (inputSchema) của tool: transport cache → descriptor server →
+   * quét registry-wide theo tên tool (fallback giúp validate khi target không khai báo).
+   * @returns {object|undefined}
+   */
+  _resolveToolSchema(serverId, toolName) {
+    const local = this.transports.get(serverId)?.tools?.find((t) => t?.name === toolName)?.inputSchema;
+    if (local) return local;
+    const declared = (this.registry.mcp(serverId)?.tools ?? []).find((t) => t?.name === toolName)?.inputSchema;
+    if (declared) return declared;
+    for (const m of this.registry.mcps()) {
+      const hit = (m.tools ?? []).find((t) => t?.name === toolName)?.inputSchema;
+      if (hit) return hit;
+    }
+    return undefined;
+  }
+
+  /**
+   * Gọi tool qua pipeline plugin (observer + BEHAVIORS) + gate server thật + audit.
+   * @param {string} server @param {string} tool @param {object} args
+   * @param {{source?:string, force?:boolean, approved?:boolean, timeoutMs?:number}} [ctx]
    * @returns {Promise<ToolResult>}
    */
   async invoke(server, tool, args = {}, ctx = {}) {
     this._ensureReady();
     const t0 = Date.now();
-    const mocked = this.transports.get(server)?.kind === 'builtin';
+    const desc = this.registry.mcp(server);
+    const conn = this.transports.get(server);
+    const mocked = conn?.kind === 'builtin';
     const pluginsApplied = [];
     /** @type {ToolResult} */
     let result;
+    let transportCalled = false; // meta.mocked chỉ xuất hiện khi transport thực sự được gọi
 
     try {
-      let entry = this.transports.get(server);
-      if (!entry && ctx.force) {
-        try { await this.connect(server); entry = this.transports.get(server); } catch { entry = null; }
+      let use = conn;
+      if (!use && ctx.force) {
+        try { await this.connect(server); use = this.transports.get(server); } catch { use = null; }
       }
-      if (!entry) {
+      if (!use) {
         result = { ok: false, error: `server '${server}' chưa kết nối`, meta: {} };
+      } else if (desc?.real === true && !SAFE_TOOL_RX.test(String(tool)) && ctx.approved !== true) {
+        // Gate an toàn cho MCP THẬT: tool ngoài whitelist đọc-an toàn cần approved=true
+        // (chặn TRƯỚC khi gọi transport; vẫn audit + emit log phía dưới).
+        result = {
+          ok: false,
+          error: 'permission required: set approved=true',
+          meta: { needsApproval: true },
+        };
       } else {
-        // 1. preInvoke của plugin enabled (observer mặc định: ghi tên plugin; hook fn có thể sửa args)
+        const toolSchema = this._resolveToolSchema(server, String(tool));
         let callArgs = deepClone(args ?? {});
+        let preBlocked = null;
+
+        // 1. preInvoke: observer cũ (pluginsApplied) + BEHAVIORS (ném Error → short-circuit)
         for (const p of this._pluginsWithHook('preInvoke')) {
           pluginsApplied.push(p.id);
-          if (typeof /** @type {any} */ (p).preInvoke === 'function') {
+          const beh = p.behavior ? BEHAVIORS[p.behavior] : null;
+          if (beh && beh.hook === 'preInvoke' && typeof beh.fn === 'function') {
+            try {
+              const bctx = {
+                server, tool,
+                schema: toolSchema,
+                plugin: p.id,
+                executor: this,
+                behaviorLabel: p.behaviorLabel ?? beh.label,
+                source: ctx.source,
+              };
+              callArgs = (await beh.fn(callArgs, bctx)) ?? callArgs;
+            } catch (e) { preBlocked = e; break; }
+          } else if (typeof /** @type {any} */ (p).preInvoke === 'function') {
             try { callArgs = (await p.preInvoke(callArgs, { ...ctx, plugin: p.id })) ?? callArgs; } catch { /* giữ args */ }
           }
         }
-        // 2. gọi transport (timeout 15s)
-        let timer;
-        const raw = await Promise.race([
-          entry.transport.call(tool, callArgs, { ...ctx, pluginsApplied }),
-          new Promise((resolve) => {
-            timer = setTimeout(() => resolve({ __timeout: true }), INVOKE_TIMEOUT_MS);
-            timer.unref?.();
-          }),
-        ]);
-        clearTimeout(timer);
-        // 3. postInvoke
-        let res = raw?.__timeout
-          ? { ok: false, error: 'timeout', meta: {} }
-          : /** @type {ToolResult} */ (raw);
-        // chuẩn hoá mọi biến thể timeout (vd 'timeout tools/call (10000ms)' của stdio) → 'timeout'
-        if (!res.ok && /^\s*timeout/i.test(String(res.error ?? '')) && String(res.error) !== 'timeout') {
-          res.meta = { ...(res.meta ?? {}), timeoutDetail: res.error };
-          res.error = 'timeout';
-        }
-        for (const p of this._pluginsWithHook('postInvoke')) {
-          pluginsApplied.push(p.id);
-          if (typeof /** @type {any} */ (p).postInvoke === 'function') {
-            try { res = (await p.postInvoke(res, { ...ctx, plugin: p.id })) ?? res; } catch { /* giữ result */ }
+
+        if (preBlocked) {
+          // SHORT-CIRCUIT: không gọi transport, vẫn ghi audit + emit log ở cuối hàm
+          result = {
+            ok: false,
+            error: String(preBlocked?.message ?? preBlocked),
+            meta: { pluginsApplied, server, tool },
+          };
+        } else {
+          // 2. gọi transport (timeout 15s)
+          let timer;
+          transportCalled = true;
+          const raw = await Promise.race([
+            use.transport.call(tool, callArgs, { ...ctx, pluginsApplied }),
+            new Promise((resolve) => {
+              timer = setTimeout(() => resolve({ __timeout: true }), INVOKE_TIMEOUT_MS);
+              timer.unref?.();
+            }),
+          ]);
+          clearTimeout(timer);
+          // 3. postInvoke
+          let res = raw?.__timeout
+            ? { ok: false, error: 'timeout', meta: {} }
+            : /** @type {ToolResult} */ (raw);
+          // chuẩn hoá mọi biến thể timeout (vd 'timeout tools/call (10000ms)' của stdio) → 'timeout'
+          if (!res.ok && /^\s*timeout/i.test(String(res.error ?? '')) && String(res.error) !== 'timeout') {
+            res.meta = { ...(res.meta ?? {}), timeoutDetail: res.error };
+            res.error = 'timeout';
           }
+          for (const p of this._pluginsWithHook('postInvoke')) {
+            pluginsApplied.push(p.id);
+            const beh = p.behavior ? BEHAVIORS[p.behavior] : null;
+            if (beh && beh.hook === 'postInvoke' && typeof beh.fn === 'function') {
+              try {
+                const bctx = {
+                  server, tool,
+                  schema: toolSchema,
+                  plugin: p.id,
+                  executor: this,
+                  behaviorLabel: p.behaviorLabel ?? beh.label,
+                  source: ctx.source,
+                };
+                res = (await beh.fn(res, bctx)) ?? res;
+              } catch { /* giữ result */ }
+            } else if (typeof /** @type {any} */ (p).postInvoke === 'function') {
+              try { res = (await p.postInvoke(res, { ...ctx, plugin: p.id })) ?? res; } catch { /* giữ result */ }
+            }
+          }
+          result = res;
         }
-        result = res;
       }
     } catch (e) {
       result = { ok: false, error: String(e?.message ?? e), meta: {} };
     }
 
     const durationMs = Date.now() - t0;
-    // canonical fields của executor luôn thắng; giữ lại key phụ từ transport
-    result.meta = { ...(result.meta ?? {}), server, tool, durationMs, mocked, pluginsApplied };
+    // canonical fields của executor luôn thắng; mocked chỉ khi transport thực sự chạy
+    result.meta = {
+      ...(result.meta ?? {}),
+      server, tool, durationMs,
+      ...(transportCalled ? { mocked } : {}),
+      pluginsApplied,
+    };
 
     this.invocations += 1;
     this.emit('log', {
@@ -368,12 +630,15 @@ export class Executor extends EventEmitter {
     } catch { return []; }
   }
 
-  /** @returns {{counts:{plugins:number,mcps:number,skills:number}, connectedMcps:number, invocations:number, lastAudit:any[]}} */
+  /** @returns {{counts:{plugins:number,mcps:number,skills:number,realMcps:number}, connectedMcps:number, realMcps:number, invocations:number, lastAudit:any[]}} */
   stats() {
     this._ensureReady();
+    const realMcps = this.registry.mcps().filter((m) => m?.real === true).length;
     return {
-      counts: this.registry.counts(),
+      // realMcps nằm cả trong counts (tiện /api/status) lẫn cấp cao nhất theo hợp đồng mới
+      counts: { ...this.registry.counts(), realMcps },
       connectedMcps: this.connectedCount(),
+      realMcps,
       invocations: this.invocations,
       lastAudit: this._lastAudit(),
     };

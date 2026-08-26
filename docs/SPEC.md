@@ -53,7 +53,9 @@ WebUI mobile-first (PWA) + backend Node.js cho **upio MCP Executor**:
 - `GET  /api/plugins/:id` → `Plugin`
 - `POST /api/plugins/:id/toggle` body `{enabled:boolean}` → `Plugin`
 - `GET  /api/mcps?q=&category=&status=` → `{total, items:(McpDescriptor&{state})[]}` (state: `connected|disconnected`)
-- `GET  /api/mcps/:id` → chi tiết đầy đủ kèm `tools`
+- `GET  /api/mcps/:id` → chi tiết đầy đủ kèm `tools`; server thật có thêm `installed:boolean`
+- `POST /api/mcps/:id/install` → cài server thật (git clone + build), log stream qua SSE `log` (`payload.install===true`) → `{ok,logs}`
+- `PUT  /api/mcps/:id/env` body `{env:{KEY:value}}` → lưu env cho server thật (GitHub/Brave/Slack…) → `{ok}`
 - `POST /api/mcps/:id/connect` → `{id, state:'connected', tools:McpTool[]}` (builtin kết nối tức thì; stdio/http thử thật, lỗi → 502 `{error}`)
 - `POST /api/mcps/:id/disconnect` → `{id, state:'disconnected'}`
 - `POST /api/invoke` body `{server, tool, args, approved?}` → `ToolResult` (đi qua plugin pipeline + audit)
@@ -66,7 +68,8 @@ WebUI mobile-first (PWA) + backend Node.js cho **upio MCP Executor**:
 - `POST /api/models/test` body `{provider}` → `{ok, latencyMs, detail}`
 - `POST /v1/chat/completions` — **OpenAI-compatible** (hỗ trợ `stream:true` trả SSE định dạng OpenAI). Model mặc định khi thiếu: `ox-local-mock`.
 - `GET  /api/agents` → `{items:[{id,name,task,status,stepsDone,model,createdAt}]}`; `POST /api/agents` body `{task, name?, model?, maxSteps?, tools?:[{server,tool}]}` → `{id}`
-- `GET  /api/agents/:id` → `{id,...,steps:[{i,thought,action,observation,at}], answer?}`
+- `GET  /api/agents/:id` → `{id,...,steps:[...],session:[{role,text,at}],followUps,answer?}`
+- `POST /api/agents/:id/say` body `{message}` → agent chạy TIẾP multi-turn (Agent AI Workspace) → `{ok,id}`; lỗi trạng thái → 409
 - `POST /api/agents/:id/cancel` → `{ok}`
 - `GET  /api/events` — **SSE**, event types: `log`, `skill-run`, `env`, `agent-step`, `mcp`, `plugin`, `boot`. Payload luôn JSON string. Gửi `retry: 3000`.
 - `GET  /api/boot` → `{phase:'booting'|'ready'|'error', startedAt, finishedAt?, steps:[{name,status,ms?,detail?}], error?}` — server TỪ động chạy EnvBuilder.build(repair) + connect toàn bộ MCP builtin ngay khi listen; tiến độ phát qua SSE `boot` và `log` (`payload.boot===true`).
@@ -137,6 +140,13 @@ Vanilla ES modules, KHÔNG framework, KHÔNG build. Trang shell `index.html` + `
 
 ## 6. Server chính (MAIN viết sẵn — subagent KHỐNG can thiệp)
 `server/index.js`: http server, static `web/`, mount routes trên, SSE hub broadcast toàn cục, PORT env mặc định **8787**.
+
+## 8. MCP thật & plugin behavior thật (v1.1)
+
+- **8 REAL MCP servers** (`real:true`, transport stdio JSON-RPC chuẩn): `roblox-executor` của upio (git-clone từ GitLab + build) và 7 gói chính chủ Anthropic qua npx (memory, sequential-thinking, filesystem, everything, github*, brave-search*, slack* — *cần needsEnv). Placeholder `{workspace}` trong args → thư mục workspace/ tuyệt đối. Boot tự connect roblox nếu đã cài; npx servers kết nối thủ công (lần đầu cần mạng).
+- Gate tool nguy hiểm trên server thật: tool KHÔNG khớp `/^(list[-_]|get[-_]|search|semantic|script-grep)/i` yêu cầu `approved:true`.
+- **131/143 plugins có behavior thật** (field `behavior` + `behaviorLabel`): preInvoke — validate-required, defaults-fill, trim-strings, rate-limit, snapshot-args, redact-input; postInvoke — redact-output, clip-output, flatten-error, annotate-meta. Behavior ném lỗi ở pre-invoke → short-circuit không gọi transport.
+- Chat & Workspace render **markdown** an toàn (web/js/md.js: escape-first, code block có Copy, link chỉ http(s)).
 
 ## 7. Chất lượng & kiểm thử
 - Mỗi module tự chạy được: `node --check file` sạch; có hàm `if (import.meta.url === \`file://\${process.argv[1]}\`)` demo nhỏ khi hợp lý.

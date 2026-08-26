@@ -55,6 +55,24 @@ npm run build-icons           # tái sinh web/js/icons.js (cần: npm i --no-sav
 | **Chat** | Giao diện chat stream typewriter qua `/v1/chat/completions` chuẩn OpenAI |
 | **Settings** | Environment doctor (scan/build/repair kèm log console trực tiếp), quản lý model provider (baseUrl/key/model, Test latency), About |
 
+### MCP thật (v1.1)
+Ngoài 98 server mô phỏng, harness tích hợp **8 MCP THẬT** qua stdio JSON-RPC chuẩn:
+
+| Server | Nguồn | Cần |
+|---|---|---|
+| 🎮 **Roblox Executor MCP** (upio) | [GitLab](https://gitlab.com/upio/roblox-executor-mcp) — execute Lua, script inspection, remote spy, GUI, screenshot | Cài 1 nút trong Hub (git clone + build), Roblox client để chạy code |
+| Memory · Sequential Thinking · Filesystem · Everything | `@modelcontextprotocol/*` chính chủ | Chỉ cần mạng lần đầu (npx) |
+| GitHub · Brave Search · Slack | `@modelcontextprotocol/*` chính chủ | Nhập API key trong chi tiết MCP |
+
+Tool nguy hiểm trên server thật (execute, post message…) luôn yêu cầu tick **approved**.
+
+### Plugins có hành vi thật
+131/143 plugin khi bật sẽ làm việc thật trong pipeline: validate-required, defaults-fill, trim-strings, rate-limit, snapshot-args, redact-input/output, clip-output, flatten-error, annotate-meta.
+
+### Agent AI Workspace
+Tab Agents → segment **Workspace**: trò chuyện nhiều lượt với agent — gửi task, xem timeline thought/action/observation trực tiếp, rồi **nhắn tiếp** ("chi tiết hơn nhé") để agent chạy bổ sung với đầy đủ ngữ cảnh. Câu trả lời render **markdown** đầy đủ (code block có nút Copy).
+
+
 ### Executor core
 - Mọi tool call đi qua **plugin pipeline** (`preInvoke`/`postInvoke`), ghi **audit** vào `data/audit.jsonl`, timeout 15s.
 - Transport: `builtin` (mô phỏng offline, deterministic), `stdio` (spawn tiến trình MCP thật, JSON-RPC 2.0), `http` (POST JSON-RPC).

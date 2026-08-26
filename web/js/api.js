@@ -48,6 +48,8 @@ export const api = {
   mcp: (id) => get(`/api/mcps/${encodeURIComponent(id)}`),
   connect: (id) => post(`/api/mcps/${encodeURIComponent(id)}/connect`),
   disconnect: (id) => post(`/api/mcps/${encodeURIComponent(id)}/disconnect`),
+  installMcp: (id) => post(`/api/mcps/${encodeURIComponent(id)}/install`),   // real server: git clone + build (log qua SSE 'log'.install)
+  saveMcpEnv: (id, env) => put(`/api/mcps/${encodeURIComponent(id)}/env`, { env }), // env cho server thật
   invoke: (server, tool, args = {}, approved) =>
     post('/api/invoke', approved ? { server, tool, args, approved } : { server, tool, args }),
   skills: () => get('/api/skills'),
@@ -61,6 +63,7 @@ export const api = {
   agents: () => get('/api/agents'),
   spawnAgent: (body) => post('/api/agents', body),
   agent: (id) => get(`/api/agents/${encodeURIComponent(id)}`),
+  sayAgent: (id, message) => post(`/api/agents/${encodeURIComponent(id)}/say`, { message }), // multi-turn: agent chạy tiếp
   cancelAgent: (id) => post(`/api/agents/${encodeURIComponent(id)}/cancel`),
 };
 

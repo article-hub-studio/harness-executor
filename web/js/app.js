@@ -342,6 +342,16 @@ async function init() {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
   document.getElementById('sheet-backdrop').addEventListener('click', closeSheet);
 
+  // Nút Copy trong code block markdown (.md-copy) — delegation TOÀN CỤC, wire đúng 1 lần.
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.md-copy');
+    if (!btn) return;
+    const code = btn.closest('.md-code')?.querySelector('pre code');
+    if (!code || !code.textContent) return;
+    if (await copyText(code.textContent)) toast('Đã copy', 'ok');
+    else toast('Không copy được', 'error');
+  });
+
   window.addEventListener('hashchange', navigate);
 
   // SSE toàn cục: bật TRƯỚC boot gate để không lỡ event 'boot'/'log'

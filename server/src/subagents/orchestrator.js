@@ -177,11 +177,17 @@ export class AgentOrchestrator extends EventEmitter {
       maxSteps,
       tools,
       createdAt: nowIso(),
+      // --- multi-turn (Agent AI Workspace) ---
+      /** @type {{role:'user'|'agent'|'observation', text:string, at:string}[]} */
+      session: [{ role: 'user', text: task, at: nowIso() }],
+      followUps: 0,
+      _lastMessage: task, // yêu cầu mới nhất (followUp) — mock planner khớp từ khoá theo cái này trước
       // --- nội bộ, không serialize ---
       _seq: ++this._seq,
       _cancelled: false,
       _finished: false,
       _deadline: Date.now() + TOTAL_LIMIT_MS,
+      _nextI: 1,                // số bước tiếp theo (liên tục qua các lượt followUp)
       _usedTools: new Set(),
       _okToolCalls: 0,
       _invalidHits: 0,
@@ -193,6 +199,31 @@ export class AgentOrchestrator extends EventEmitter {
     this.agents.set(id, agent);
     setTimeout(() => { this._run(agent).catch(() => {}); }, 0);
     return { id };
+  }
+
+  /**
+   * Lượt nói tiếp theo cho agent ĐÃ chạy xong (done/error): đẩy message vào session
+   * và chạy lại vòng lặp nền TIẾP tục lịch sử (+4 maxSteps). Agent đang running/cancelled → throw.
+   * @param {string} id @param {string} message @returns {{ok:true, id:string}}
+   */
+  followUp(id, message) {
+    const a = this.agents.get(id);
+    if (!a) throw new Error(`agent '${id}' không tồn tại`);
+    if (typeof message !== 'string') throw new Error('message phải là chuỗi 1..2000 ký tự');
+    const msg = clipStr(message.trim(), 2000);
+    if (!msg) throw new Error('message phải là chuỗi 1..2000 ký tự');
+    if (a.status === 'running') throw new Error('agent đang chạy');
+    if (a.status === 'cancelled') throw new Error('đã huỷ');
+    a.session.push({ role: 'user', text: msg, at: nowIso() });
+    a._lastMessage = msg;
+    a.status = 'running';
+    a.followUps = (a.followUps ?? 0) + 1;
+    a.maxSteps += 4;
+    a._finished = false;
+    a._cancelled = false;
+    a._deadline = Date.now() + TOTAL_LIMIT_MS; // gia hạn guard thời gian cho lượt mới
+    setTimeout(() => { this._run(a).catch(() => {}); }, 0);
+    return { ok: true, id };
   }
 
   /** Đặt cờ hủy; vòng lặp kiểm giữa các bước (kể cả giữa lúc đang chờ model/invoke). */
@@ -223,7 +254,7 @@ export class AgentOrchestrator extends EventEmitter {
   /** @private */
   async _run(agent) {
     try {
-      for (let i = 1; i <= agent.maxSteps; i++) {
+      for (let i = agent._nextI; i <= agent.maxSteps; i++) {
         if (agent._cancelled) { this._markCancelled(agent); return; }
         if (Date.now() > agent._deadline) {
           await this._summarizeAndFinish(agent, 'vượt giới hạn thời gian 120 giây (timeout)');
@@ -341,11 +372,19 @@ export class AgentOrchestrator extends EventEmitter {
     return L.join('\n');
   }
 
-  /** @private Trạng thái hiện tại: bước thứ mấy + lịch sử (≤400 ký tự/bước). */
+  /** @private Trạng thái hiện tại: bước thứ mấy + CONTEXT (8 entry cuối của session) + lịch sử (≤400 ký tự/bước). */
   _statePrompt(agent, i) {
     const hist = this._historyLines(agent);
     const L = [];
     L.push(`Trạng thái hiện tại: bước ${i}/${agent.maxSteps}.`);
+    // CONTEXT: 8 entry cuối của session (user/agent/observation) — để agent biết kết quả trước
+    const recent = (agent.session ?? []).slice(-8);
+    if (recent.length) {
+      L.push('CONTEXT — hội thoại gần nhất:');
+      for (const m of recent) L.push(`- [${m.role}] ${clipStr(m.text, 200)}`);
+    } else {
+      L.push('Chưa có ngữ cảnh hội thoại nào.');
+    }
     L.push(hist ? 'Lịch sử các bước trước:' : 'Chưa có bước nào được thực hiện.');
     if (hist) L.push(hist);
     L.push('');
@@ -367,6 +406,22 @@ export class AgentOrchestrator extends EventEmitter {
 
   /** @private Fallback khi modelHub.chat throw HOẶC nội dung không parse được JSON. */
   _mockPlan(agent, _ctx = {}) {
+    // Lượt followUp: khớp từ khoá theo MESSAGE MỚI trước, fallback task cũ;
+    // hết tool phù hợp → final "Bổ sung..." tổng hợp observation mới + cũ.
+    const freshTurn = agent.followUps > 0 && agent._lastMessage && agent._lastMessage !== agent.task;
+    if (freshTurn) {
+      const pick = this._pickTool(agent);
+      if (!pick) return this._mockFollowUpFinal(agent);
+      const why = pick.matched.length
+        ? `khớp từ khóa của yêu cầu bổ sung: ${pick.matched.slice(0, 3).join(', ')}`
+        : 'thử công cụ còn lại trong danh sách';
+      const thought = `[mock-planner] Yêu cầu bổ sung "${clipStr(agent._lastMessage, 120)}" → chọn \`${this._toolLabel(pick.entry)}\` (${why}).`;
+      return {
+        thought,
+        action: { type: 'tool', server: pick.entry.server, tool: pick.entry.tool, args: this._mockArgs(agent, pick.entry) },
+        source: 'mock',
+      };
+    }
     if (agent._okToolCalls >= MIN_OK_CALLS_BEFORE_MOCK_FINAL) {
       return this._mockFinal(agent, `đã gọi công cụ thành công ${agent._okToolCalls} lần, đủ dữ liệu để tổng hợp`);
     }
@@ -383,30 +438,38 @@ export class AgentOrchestrator extends EventEmitter {
     };
   }
 
-  /** @private Chấm điểm task↔tool bằng tokens; ưu tiên thứ tự khai báo khi hòa. */
+  /** @private Chấm điểm yêu cầu hiện tại ↔ tool bằng tokens; lượt followUp thử message mới trước rồi mới tới task cũ. */
   _pickTool(agent) {
-    const tokens = tokenize(agent.task);
     this._loadToolInfo(agent);
-    let best = null;
-    agent.tools.forEach((entry, idx) => {
-      if (agent._usedTools.has(entry.server + '|' + entry.tool)) return;
-      const info = agent._toolInfo.get(entry.server + '|' + entry.tool);
-      const bag = new Set(tokenize(`${entry.server} ${entry.tool.replace(/[._\-]+/g, ' ')} ${info ? info.description : ''}`));
-      const matched = tokens.filter((t) => bag.has(t));
-      // Cho phép fallback "công cụ đầu tiên" duy nhất khi chưa gọi tool nào.
-      if (!matched.length && !(best === null && agent._okToolCalls === 0)) return;
-      const score = matched.length * 10 - idx * 0.001;
-      if (!best || score > best.score) best = { entry, score, matched };
-    });
+    const attempt = (tokens) => {
+      let best = null;
+      agent.tools.forEach((entry, idx) => {
+        if (agent._usedTools.has(entry.server + '|' + entry.tool)) return;
+        const info = agent._toolInfo.get(entry.server + '|' + entry.tool);
+        const bag = new Set(tokenize(`${entry.server} ${entry.tool.replace(/[._\-]+/g, ' ')} ${info ? info.description : ''}`));
+        const matched = tokens.filter((t) => bag.has(t));
+        // Cho phép fallback "công cụ đầu tiên" duy nhất khi chưa gọi tool nào.
+        if (!matched.length && !(best === null && agent._okToolCalls === 0)) return;
+        const score = matched.length * 10 - idx * 0.001;
+        if (!best || score > best.score) best = { entry, score, matched };
+      });
+      return best;
+    };
+    const msgTokens = tokenize(agent._lastMessage ?? '');
+    const taskTokens = tokenize(agent.task);
+    const useMessageFirst = agent._lastMessage && agent._lastMessage !== agent.task;
+    let best = attempt(useMessageFirst ? msgTokens : taskTokens);
+    if (!best && useMessageFirst) best = attempt(taskTokens); // fallback task cũ
     return best;
   }
 
   /** @private Sinh args mẫu theo tên prop (schema nếu có, mặc định đoán từ tên tool). */
   _mockArgs(agent, entry) {
     const info = this._loadToolInfo(agent).get(entry.server + '|' + entry.tool);
-    const tokens = tokenize(agent.task);
+    // yêu cầu mới nhất (followUp) được ưu tiên khi suy luận tham số
+    const tokens = tokenize(`${agent._lastMessage ?? ''} ${agent.task}`);
     const first = tokens[0] || 'du-lieu';
-    const slug = slugify(agent.task);
+    const slug = slugify(agent._lastMessage || agent.task);
     const props = (info && info.props && info.props.length) ? info.props : this._guessProps(entry.tool);
     const args = {};
     for (const pair of props) {
@@ -444,10 +507,25 @@ export class AgentOrchestrator extends EventEmitter {
     };
   }
 
+  /** @private Final cho lượt followUp khi không còn tool phù hợp với yêu cầu mới. */
+  _mockFollowUpFinal(agent) {
+    const reason = `yêu cầu bổ sung "${clipStr(agent._lastMessage ?? '', 160)}" không còn công cụ phù hợp`;
+    return {
+      thought: `[mock-planner] ${reason}; tổng hợp bổ sung từ toàn bộ quan sát (mới + cũ).`,
+      action: { type: 'final', answer: this._mockFinalText(agent, reason) },
+      source: 'mock',
+    };
+  }
+
   /** @private */
   _mockFinalText(agent, reason) {
     const toolSteps = agent.steps.filter((s) => s.action && s.action.type === 'tool');
     const L = [];
+    if (agent.followUps > 0 && agent._lastMessage && agent._lastMessage !== agent.task) {
+      // lượt bổ sung: mở đầu bằng yêu cầu mới, tổng hợp observation mới + cũ
+      L.push(`Bổ sung dựa trên yêu cầu "${clipStr(agent._lastMessage, 300)}":`);
+      L.push('');
+    }
     L.push(`Tổng kết nhiệm vụ: “${clipStr(agent.task, 300)}”.`);
     L.push('');
     L.push('Diễn tiến các bước:');
@@ -550,6 +628,10 @@ export class AgentOrchestrator extends EventEmitter {
       at: nowIso(),
     };
     agent.steps.push(step);
+    agent._nextI = Math.max(agent._nextI, i + 1); // đánh số liên tục qua các lượt followUp
+    if (step.observation) {
+      agent.session.push({ role: 'observation', text: clipStr(observation ?? '', 400), at: nowIso() });
+    }
     this.emit('agent-step', {
       id: agent.id,
       i,
@@ -565,6 +647,7 @@ export class AgentOrchestrator extends EventEmitter {
     const text = clipStr(String(answer ?? '').trim() || '(Agent không đưa ra câu trả lời.)', ANSWER_CLIP);
     agent.answer = text;
     this._pushStep(agent, i, clipStr(thought || 'Hoàn thành nhiệm vụ.', 500), { type: 'final', answer: text }, '');
+    agent.session.push({ role: 'agent', text: text, at: nowIso() });
     agent.status = 'done';
     agent._finished = true;
     this.emit('agent-final', { id: agent.id, answer: text, status: 'done' });
@@ -606,7 +689,7 @@ export class AgentOrchestrator extends EventEmitter {
         ? `Ép kết thúc: ${forcedReason}.`
         : `Đã dùng hết ${agent.maxSteps} bước; tổng hợp câu trả lời cuối từ các quan sát.`,
       answer,
-      agent.steps.length + 1,
+      agent._nextI,
     );
   }
 
@@ -629,8 +712,12 @@ export class AgentOrchestrator extends EventEmitter {
       tools: a.tools.map((t) => ({ ...t })),
       createdAt: a.createdAt,
       stepsDone: a.steps.length,
+      followUps: a.followUps ?? 0,
     };
-    if (withSteps) out.steps = a.steps.map((s) => ({ ...s, action: s.action ? { ...s.action } : null }));
+    if (withSteps) {
+      out.steps = a.steps.map((s) => ({ ...s, action: s.action ? { ...s.action } : null }));
+      out.session = (a.session ?? []).map((m) => ({ role: m.role, text: m.text, at: m.at }));
+    }
     return out;
   }
 

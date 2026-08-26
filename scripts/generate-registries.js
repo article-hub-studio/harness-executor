@@ -161,6 +161,106 @@ const CATS = [
 
 const AUTHORS = ['upio labs', 'mcp-contrib', 'openstack-collective', 'hexbyte.io', 'nova-tools', 'community'];
 
+// ---------- REAL MCP servers (chạy thật: stdio JSON-RPC chuẩn MCP) ----------
+const REAL_MCPS = [
+  {
+    id: 'roblox-executor', name: 'Roblox Executor MCP (upio)', category: 'real', icon: '🎮',
+    description: 'MCP server chính thức của upio (gitlab.com/upio/roblox-executor-mcp): execute code Lua, inspect scripts, remote spy, GUI, screenshot — điều khiển Roblox client thật qua agent.',
+    version: '1.0.0', author: 'upio', transport: 'stdio', real: true, featured: true,
+    install: { method: 'git-clone', repo: 'https://gitlab.com/upio/roblox-executor-mcp.git', dir: 'mcp-servers/roblox-executor-mcp', entry: 'dist/index.js', build: 'npm install --ignore-scripts && npm run build' },
+    command: 'node', args: ['mcp-servers/roblox-executor-mcp/dist/index.js'],
+    tags: ['real', 'roblox', 'upio', 'executor'], stars: 9999,
+    tools: [], dynamicTools: true,
+    toolPreview: ['execute', 'execute-file', 'get-script-content', 'script-grep', 'search-instances', 'remote-spy', 'type-text-box', 'click-button', 'screenshot-window', 'list-clients'],
+  },
+  {
+    id: 'mcp-memory', name: 'Memory (official)', category: 'real', icon: '🧠',
+    description: 'Reference server chính chủ của Anthropic: knowledge graph memory (entities, relations, observations) qua stdio.',
+    version: '2026.7.4', author: 'Anthropic (official)', transport: 'stdio', real: true,
+    install: { method: 'npx', package: '@modelcontextprotocol/server-memory' },
+    command: 'npx', args: ['-y', '@modelcontextprotocol/server-memory'],
+    tags: ['real', 'official', 'memory'], stars: 5400,
+    tools: [], dynamicTools: true, toolPreview: ['create_entities', 'create_relations', 'add_observations', 'search_nodes', 'read_graph'],
+  },
+  {
+    id: 'mcp-sequential-thinking', name: 'Sequential Thinking (official)', category: 'real', icon: '🔗',
+    description: 'Reference server chính chủ: suy luận nhiều bước động có sửa đổi/nhánh qua stdio.',
+    version: '2026.7.4', author: 'Anthropic (official)', transport: 'stdio', real: true,
+    install: { method: 'npx', package: '@modelcontextprotocol/server-sequential-thinking' },
+    command: 'npx', args: ['-y', '@modelcontextprotocol/server-sequential-thinking'],
+    tags: ['real', 'official', 'reasoning'], stars: 4100,
+    tools: [], dynamicTools: true, toolPreview: ['sequentialthinking'],
+  },
+  {
+    id: 'mcp-filesystem', name: 'Filesystem (official)', category: 'real', icon: '📁',
+    description: 'Reference server chính chủ: đọc/ghi/tìm kiếm file thật trong thư mục workspace của harness.',
+    version: '2026.7.10', author: 'Anthropic (official)', transport: 'stdio', real: true,
+    install: { method: 'npx', package: '@modelcontextprotocol/server-filesystem' },
+    command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem', '{workspace}'],
+    tags: ['real', 'official', 'files'], stars: 6200,
+    tools: [], dynamicTools: true, toolPreview: ['read_file', 'write_file', 'list_directory', 'search_files', 'get_file_info'],
+  },
+  {
+    id: 'mcp-everything', name: 'Everything (official test)', category: 'real', icon: '🧪',
+    description: 'Reference server chính chủ: bộ test đầy đủ mọi tính năng MCP (tools, resources, prompts, sampling).',
+    version: '2026.8.18', author: 'Anthropic (official)', transport: 'stdio', real: true,
+    install: { method: 'npx', package: '@modelcontextprotocol/server-everything' },
+    command: 'npx', args: ['-y', '@modelcontextprotocol/server-everything'],
+    tags: ['real', 'official', 'test'], stars: 1800,
+    tools: [], dynamicTools: true, toolPreview: ['echo', 'add', 'longRunningOperation', 'sampleLLM'],
+  },
+  {
+    id: 'mcp-github', name: 'GitHub (official)', category: 'real', icon: '🐙',
+    description: 'Reference server chính chủ: repos, issues, PRs, code search trên GitHub — cần Personal Access Token.',
+    version: '2025.4.8', author: 'Anthropic (official)', transport: 'stdio', real: true,
+    install: { method: 'npx', package: '@modelcontextprotocol/server-github' },
+    command: 'npx', args: ['-y', '@modelcontextprotocol/server-github'],
+    needsEnv: ['GITHUB_PERSONAL_ACCESS_TOKEN'],
+    tags: ['real', 'official', 'github'], stars: 7300,
+    tools: [], dynamicTools: true, toolPreview: ['create_issue', 'get_pull_request', 'search_repositories', 'list_commits'],
+  },
+  {
+    id: 'mcp-brave-search', name: 'Brave Search (official)', category: 'real', icon: '🦁',
+    description: 'Reference server chính chủ: tìm kiếm web/image/news qua Brave API — cần API key.',
+    version: '0.6.2', author: 'Anthropic (official)', transport: 'stdio', real: true,
+    install: { method: 'npx', package: '@modelcontextprotocol/server-brave-search' },
+    command: 'npx', args: ['-y', '@modelcontextprotocol/server-brave-search'],
+    needsEnv: ['BRAVE_API_KEY'],
+    tags: ['real', 'official', 'search'], stars: 2900,
+    tools: [], dynamicTools: true, toolPreview: ['brave_web_search', 'brave_local_search'],
+  },
+  {
+    id: 'mcp-slack', name: 'Slack (official)', category: 'real', icon: '💬',
+    description: 'Reference server chính chủ: kênh, tin nhắn, users Slack — cần Bot Token.',
+    version: '2025.4.25', author: 'Anthropic (official)', transport: 'stdio', real: true,
+    install: { method: 'npx', package: '@modelcontextprotocol/server-slack' },
+    command: 'npx', args: ['-y', '@modelcontextprotocol/server-slack'],
+    needsEnv: ['SLACK_BOT_TOKEN'],
+    tags: ['real', 'official', 'slack'], stars: 2600,
+    tools: [], dynamicTools: true, toolPreview: ['slack_list_channels', 'slack_post_message', 'slack_get_users'],
+  },
+];
+
+// behavior thật cho plugins: map category → behavior id (chỉ khi hook khai báo khớp)
+const PLUGIN_BEHAVIORS = {
+  automation: 'trim-strings', devtools: 'validate-required', ai: 'defaults-fill',
+  web: 'annotate-meta', media: 'clip-output', system: 'snapshot-args',
+  data: 'flatten-error', security: 'redact-output', productivity: null,
+  networking: 'rate-limit', text: 'redact-output',
+};
+const BEHAVIOR_HOOKS = {
+  'validate-required': 'preInvoke', 'defaults-fill': 'preInvoke', 'trim-strings': 'preInvoke',
+  'rate-limit': 'preInvoke', 'snapshot-args': 'preInvoke', 'redact-input': 'preInvoke',
+  'redact-output': 'postInvoke', 'clip-output': 'postInvoke', 'flatten-error': 'postInvoke',
+  'annotate-meta': 'postInvoke',
+};
+const BEHAVIOR_LABELS = {
+  'validate-required': 'Kiểm tra tham số bắt buộc', 'defaults-fill': 'Điền giá trị mặc định',
+  'trim-strings': 'Chuẩn hoá chuỗi', 'rate-limit': 'Giới hạn tần suất', 'snapshot-args': 'Chụp ảnh args',
+  'redact-input': 'Che dữ liệu nhạy cảm (input)', 'redact-output': 'Che dữ liệu nhạy cảm (output)',
+  'clip-output': 'Cắt ngắn kết quả lớn', 'flatten-error': 'Chuẩn hoá lỗi', 'annotate-meta': 'Ghi chú meta',
+};
+
 export function buildMcps() {
   const items = []; const seen = new Set();
   for (const c of CATS) {
@@ -188,6 +288,12 @@ export function buildMcps() {
         tools,
       });
     }
+  }
+  // nối REAL MCP servers (stdio thật) — tổng 98 builtin + 8 real
+  for (const r of REAL_MCPS) {
+    if (seen.has(r.id)) continue;
+    seen.add(r.id);
+    items.push(r);
   }
   return items;
 }
@@ -229,6 +335,9 @@ export function buildPlugins() {
       while (seen.has(id)) id = slug(`${name}-${k++}`);
       seen.add(id);
       const hookSet = [...hooks]; if (rnd() > 0.55) hookSet.push('onLog');
+      // behavior thật: chỉ gán khi hook khai báo của plugin chứa hook mà behavior cần
+      const behavior = PLUGIN_BEHAVIORS[cat] ?? null;
+      const usable = behavior && hookSet.includes(BEHAVIOR_HOOKS[behavior]) ? behavior : null;
       items.push({
         id, name: name.replace(/(^|-)([a-z])/g, (m, p, ch) => p + ch.toUpperCase()).replace(/-/g, ' '),
         category: cat, icon,
@@ -238,6 +347,8 @@ export function buildPlugins() {
         hooks: hookSet.sort(),
         enabled: false,
         popularity: Math.floor(rnd() * 100),
+        behavior: usable,
+        behaviorLabel: usable ? BEHAVIOR_LABELS[usable] : null,
       });
     }
   }
@@ -350,9 +461,9 @@ const mcps = buildMcps();
 const plugins = buildPlugins();
 const skills = buildSkills();
 
-assert(mcps.length === 98, `mcps = ${mcps.length}, cần 98`);
+assert(mcps.length === 98 + REAL_MCPS.length, `mcps = ${mcps.length}, cần ${98 + REAL_MCPS.length} (98 builtin + ${REAL_MCPS.length} real)`);
 assert(plugins.length === 143, `plugins = ${plugins.length}, cần 143`);
-assert(new Set(mcps.map(x => x.id)).size === 98, 'trùng id mcps');
+assert(new Set(mcps.map(x => x.id)).size === mcps.length, 'trùng id mcps');
 assert(new Set(plugins.map(x => x.id)).size === 143, 'trùng id plugins');
 assert(new Set(skills.map(x => x.id)).size === skills.length, 'trùng id skills');
 

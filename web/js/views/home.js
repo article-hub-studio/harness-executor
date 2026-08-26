@@ -17,7 +17,7 @@ export async function render(el) {
     <section class="stat-grid" aria-label="Thống kê">
       <div class="card stat"><div class="stat-label">${icon('blade/clock', 'ic-xs')}Uptime</div><div class="stat-value" id="st-uptime">—</div><div class="stat-sub" id="st-env"></div></div>
       <div class="card stat"><div class="stat-label">${icon('solar/puzzle', 'ic-xs')}Plugins</div><div class="stat-value" id="st-plugins">—</div><div class="stat-sub"></div></div>
-      <div class="card stat hl"><div class="stat-label">${icon('solar/server', 'ic-xs')}MCPs</div><div class="stat-value" id="st-mcps">—</div><div class="stat-sub" id="st-connected">&nbsp;</div></div>
+      <div class="card stat hl"><div class="stat-label">${icon('solar/server', 'ic-xs')}MCPs</div><div class="stat-value" id="st-mcps">—</div><div class="stat-sub" id="st-connected">&nbsp;</div><div class="stat-sub dim" id="st-mcp-cap" hidden></div></div>
       <div class="card stat"><div class="stat-label">${icon('solar/book', 'ic-xs')}Skills</div><div class="stat-value" id="st-skills">—</div><div class="stat-sub"></div></div>
     </section>
 
@@ -55,6 +55,15 @@ export async function render(el) {
     else {
       connEl.innerHTML = `${icon('solar/activity', 'ic-xs')} <span id="st-conn-n">0</span> connected`;
       countUp(connEl.querySelector('#st-conn-n'), conn, { fmt: fmtNum });
+    }
+    // Caption MCPs: '98 mô phỏng · 8 thật' — ẩn nếu backend chưa trả realMcps
+    const capEl = $('st-mcp-cap');
+    if (typeof counts.realMcps === 'number' && typeof counts.mcps === 'number') {
+      const sim = Math.max(0, counts.mcps - counts.realMcps);
+      capEl.textContent = `${sim} mô phỏng · ${counts.realMcps} thật`;
+      capEl.hidden = false;
+    } else {
+      capEl.hidden = true;
     }
     $('st-env').textContent = s.env && s.env.node ? `node ${s.env.node}` : '';
   }

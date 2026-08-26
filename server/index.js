@@ -33,7 +33,7 @@ const hub = new SseHub();
 const modelHub = new ModelHub({ dataDir: DATA_DIR });
 await modelHub.init();
 
-const executor = new Executor({ dataDir: DATA_DIR, modelHub });
+const executor = new Executor({ dataDir: DATA_DIR, modelHub, rootDir: ROOT });
 await executor.init();
 executor.on('log', (p) => hub.broadcast('log', p));
 
@@ -75,6 +75,20 @@ async function autoBoot() {
       }
     }
     mark('connect-mcp', 'ok', { ms: Date.now() - t1, detail: `${okCount}/${builtins.length} servers` });
+
+    // 2b. Roblox Executor MCP (thật) — tự connect nếu đã cài sẵn trong mcp-servers/
+    if (typeof executor.isRealInstalled === 'function') {
+      try {
+        if (await executor.isRealInstalled('roblox-executor')) {
+          await executor.connect('roblox-executor');
+          mark('connect-roblox', 'ok', { detail: 'roblox-executor MCP sẵn sàng' });
+        } else {
+          mark('connect-roblox', 'skip', { detail: 'chưa cài — vào Hub để cài' });
+        }
+      } catch (e) {
+        mark('connect-roblox', 'skip', { detail: String(e?.message ?? e).slice(0, 120) });
+      }
+    }
 
     // 3. Sẵn sàng
     bootState.phase = 'ready';
@@ -143,11 +157,32 @@ route('GET', '/api/mcps', (ctx) => {
   const items = executor.mcps ? executor.mcps(ctx.query) : [];
   ok(ctx.res, { total: items.length, items });
 });
-route('GET', '/api/mcps/:id', (ctx) => {
+route('GET', '/api/mcps/:id', async (ctx) => {
   const all = executor.mcps ? executor.mcps({}) : [];
   const m = all.find((x) => x.id === ctx.params.id);
   if (!m) return fail(ctx.res, 404, `mcp ${ctx.params.id} not found`);
-  ok(ctx.res, { ...m, state: executor.isConnected(ctx.params.id) ? 'connected' : 'disconnected' });
+  const installed = typeof executor.isRealInstalled === 'function'
+    ? await executor.isRealInstalled(ctx.params.id)
+    : true;
+  ok(ctx.res, { ...m, state: executor.isConnected(ctx.params.id) ? 'connected' : 'disconnected', installed });
+});
+// Cài đặt server thật (git clone + build) — log stream qua SSE
+route('POST', '/api/mcps/:id/install', async (ctx) => {
+  try {
+    if (typeof executor.installReal !== 'function') return fail(ctx.res, 501, 'install chưa khả dụng');
+    const logs = await executor.installReal(ctx.params.id, (_ev, p) => hub.broadcast('log', { ...p, install: true }));
+    hub.broadcast('mcp', { id: ctx.params.id, state: 'installed' });
+    ok(ctx.res, { ok: true, logs });
+  } catch (e) { fail(ctx.res, 500, e.message); }
+});
+// Cấu hình biến môi trường cho server thật (GitHub/Brave/Slack…)
+route('PUT', '/api/mcps/:id/env', async (ctx) => {
+  try {
+    const body = await readBody(ctx.req);
+    if (!body.env || typeof body.env !== 'object') return fail(ctx.res, 400, 'cần {env:{KEY:value}}');
+    if (typeof executor.setMcpEnv !== 'function') return fail(ctx.res, 501, 'env chưa khả dụng');
+    ok(ctx.res, await Promise.resolve(executor.setMcpEnv(ctx.params.id, body.env)));
+  } catch (e) { fail(ctx.res, 400, e.message); }
 });
 route('POST', '/api/mcps/:id/connect', async (ctx) => {
   try {
@@ -254,6 +289,17 @@ route('GET', '/api/agents/:id', (ctx) => {
   ok(ctx.res, a);
 });
 route('POST', '/api/agents/:id/cancel', (ctx) => ok(ctx.res, { ok: orchestrator.cancel(ctx.params.id) }));
+// Agent AI Workspace: nhắn tiếp cho agent đã chạy xong (multi-turn)
+route('POST', '/api/agents/:id/say', async (ctx) => {
+  try {
+    const body = await readBody(ctx.req);
+    const message = String(body.message ?? '').trim();
+    if (!message) return fail(ctx.res, 400, 'cần {message}');
+    ok(ctx.res, orchestrator.followUp(ctx.params.id, message.slice(0, 2000)));
+  } catch (e) {
+    fail(ctx.res, /không tồn tại|đang chạy|đã huỷ/i.test(String(e.message)) ? 409 : 400, e.message);
+  }
+});
 
 // ---- SSE ----
 route('GET', '/api/events', (ctx) => { hub.add(ctx.res); });

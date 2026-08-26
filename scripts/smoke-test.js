@@ -42,13 +42,13 @@ function listenSse(ms, trigger) {
 
 console.log(`\n🧪 upio MCP Executor Harness — smoke test against ${BASE}\n`);
 
-await check('GET /api/status (counts đúng 98/143)', async () => {
+await check('GET /api/status (counts đúng 106/143)', async () => {
   const j = expectOk(await req('GET', '/api/status'), 'status');
   assert(j.ok === true, 'ok != true');
-  assert(j.counts.mcps === 98, `mcps=${j.counts.mcps} != 98`);
+  assert(j.counts.mcps === 106, `mcps=${j.counts.mcps} != 106`);
   assert(j.counts.plugins === 143, `plugins=${j.counts.plugins}`);
   assert(j.counts.skills >= 40, `skills=${j.counts.skills}`);
-  return `node ${j.env?.node}`;
+  return `node ${j.env?.node} · realMcps=${j.counts.realMcps}`;
 });
 
 let boot;
@@ -84,12 +84,27 @@ await check('POST toggle plugin on→off', async () => {
   return pluginId;
 });
 
-await check('GET /api/mcps (98 items + filter category)', async () => {
+await check('GET /api/mcps (106 items + filter category + real)', async () => {
   const all = expectOk(await req('GET', '/api/mcps'), 'mcps');
-  assert(all.total === 98, `total=${all.total}`);
+  assert(all.total === 106, `total=${all.total}`);
   const fsCat = expectOk(await req('GET', '/api/mcps?category=filesystem'), 'filter');
   assert(fsCat.total >= 8, 'category filesystem < 8');
-  return `98 servers, filesystem=${fsCat.total}`;
+  const realCat = expectOk(await req('GET', '/api/mcps?category=real'), 'filter real');
+  assert(realCat.total === 8, `real=${realCat.total} != 8`);
+  return `106 servers · real=${realCat.total}`;
+});
+
+let robloxTools = 0;
+await check('REAL MCP: roblox-executor cài sẵn + connect + invoke thật', async () => {
+  const d = expectOk(await req('GET', '/api/mcps/roblox-executor'), 'detail');
+  assert(d.real === true && d.installed === true, `real=${d.real} installed=${d.installed}`);
+  const c = expectOk(await req('POST', '/api/mcps/roblox-executor/connect', {}), 'connect');
+  assert(c.state === 'connected' && c.tools.length >= 15, `tools=${c.tools.length}`);
+  robloxTools = c.tools.length;
+  const inv = expectOk(await req('POST', '/api/invoke', { server: 'roblox-executor', tool: 'list-clients', args: {} }), 'invoke');
+  assert(inv.ok === true, `list-clients lỗi: ${inv.error}`);
+  await req('POST', '/api/mcps/roblox-executor/disconnect', {});
+  return `${robloxTools} tools thật · list-clients OK`;
 });
 
 let connectedTools = 0;
@@ -164,6 +179,36 @@ await check('POST spawn agent + poll tới done', async () => {
   assert(a.steps.length >= 1, 'không có bước nào');
   assert(a.answer && a.answer.length > 10, 'answer trống');
   return `${a.steps.length} steps`;
+});
+
+await check('Agent AI Workspace: nhắn tiếp agent (multi-turn)', async () => {
+  const s = expectOk(await req('POST', `/api/agents/${agentId}/say`, { message: 'chi tiết hơn về kết quả nhé' }), 'say');
+  assert(s.ok === true, 'say không ok');
+  const deadline = Date.now() + 25000;
+  let a;
+  while (Date.now() < deadline) {
+    a = expectOk(await req('GET', `/api/agents/${agentId}`), 'agent get 2');
+    if (a.status !== 'running') break;
+    await new Promise((r2) => setTimeout(r2, 700));
+  }
+  assert(a.status === 'done', `status=${a.status}`);
+  assert((a.followUps ?? 0) === 1, `followUps=${a.followUps}`);
+  assert(Array.isArray(a.session) && a.session.length >= 4, `session=${a.session?.length}`);
+  return `session ${a.session.length} entry · followUps=${a.followUps}`;
+});
+
+await check('Plugin behavior thật: validate-required chặn invoke', async () => {
+  const dev = expectOk(await req('GET', '/api/plugins?category=devtools'), 'devtools');
+  const p = dev.items.find((x) => x.behavior === 'validate-required');
+  assert(p, 'không có plugin validate-required');
+  await req('POST', `/api/plugins/${p.id}/toggle`, { enabled: true });
+  await expectOk(await req('POST', '/api/mcps/filesystem-vaultkeeper/connect', {}), 'connect cho plugin test');
+  const inv = await req('POST', '/api/invoke', { server: 'filesystem-vaultkeeper', tool: 'fs.list_dir', args: {} });
+  await req('POST', '/api/mcps/filesystem-vaultkeeper/disconnect', {});
+  await req('POST', `/api/plugins/${p.id}/toggle`, { enabled: false });
+  assert(inv.json && inv.json.ok === false, 'plugin không chặn được');
+  assert(/validate-required/.test(String(inv.json.error)), `error lạ: ${inv.json.error}`);
+  return p.id;
 });
 
 await check('SSE nhận ít nhất log + env events', async () => {

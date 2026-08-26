@@ -37,17 +37,34 @@ function toToolResult(r, base, t0) {
 }
 
 /**
- * Rút kết quả từ payload MCP `tools/call` ({content:[{type:'text',text}], structuredContent?, isError?}).
+ * Rút kết quả từ payload MCP `tools/call` (chuẩn spec MCP):
+ *   - result.content là mảng → nối text parts bằng '\n' → thử JSON.parse toàn bộ
+ *     (thành object thì dùng object, fail thì giữ string);
+ *   - result.isError === true → ok:false với error = text;
+ *   - result KHÔNG có content → đưa nguyên result.
  * @param {*} res @returns {{ok:boolean, result?:any, error?:string}}
  */
 function extractMcpCall(res) {
   if (!res || typeof res !== 'object') return { ok: true, result: res };
-  const texts = Array.isArray(res.content)
-    ? res.content.map((c) => (c?.type === 'text' ? c.text : c?.type ? `[${c.type}]` : '')).filter(Boolean).join('\n')
-    : '';
-  if (res.isError === true) return { ok: false, error: texts || res.error?.message || 'tool execution error' };
-  const result = res.structuredContent ?? (Array.isArray(res.content) ? (texts || null) : res);
-  return { ok: true, result };
+  if (res.isError === true) {
+    const t = Array.isArray(res.content)
+      ? res.content.map((c) => (c?.type === 'text' && typeof c.text === 'string' ? c.text : '')).filter(Boolean).join('\n')
+      : '';
+    return { ok: false, error: t || res.error?.message || 'tool execution error' };
+  }
+  if (!Array.isArray(res.content)) return { ok: true, result: res }; // không có content → nguyên result
+  const texts = res.content
+    .map((c) => (c?.type === 'text' && typeof c.text === 'string' ? c.text : c?.type ? `[${c.type}]` : ''))
+    .filter(Boolean)
+    .join('\n');
+  let out = texts;
+  if (texts) {
+    try {
+      const v = JSON.parse(texts);
+      if (v && typeof v === 'object') out = v; // chỉ nhận object/array, còn lại giữ string
+    } catch { /* không parse được → giữ string */ }
+  }
+  return { ok: true, result: out };
 }
 
 // ---------------------------------------------------------------- builtin
@@ -105,13 +122,25 @@ export function createBuiltinTransport(serverId) {
 
 // ---------------------------------------------------------------- stdio
 
+const STDERR_TAIL_LINES = 40;     // giữ tail stderr ~40 dòng
+const STDERR_TAIL_CHARS = 8_000;
+const INIT_TIMEOUT_MS = 10_000;   // timeout handshake initialize
+/** Env rút gọn truyền xuống process con (PATH/HOME/LAG… tối thiểu) + env do executor cung cấp đè. */
+const SPAWN_ENV_KEYS = ['PATH', 'HOME', 'LANG', 'TMPDIR'];
+
 /**
  * Transport stdio thật: spawn process, JSON-RPC 2.0 line-delimited (MCP),
- * handshake `initialize`, timeout 10s mỗi call, dọn process khi close().
- * @param {{command:string, args?:string[]}} opts
+ * handshake ĐÚNG spec: initialize → chờ result → notifications/initialized → mới tools/*.
+ * Server→client request (ping/sampling/…) → trả JSON-RPC error -32601; notification → bỏ qua.
+ * Timeout mỗi call 10s (listTools dùng listToolsTimeoutMs nếu cấp). close() kill sạch + reject pending.
+ * @param {{command:string, args?:string[], env?:Record<string,string>, cwd?:string,
+ *          listToolsTimeoutMs?:number}} opts
  */
-export function createStdioTransport({ command, args = [] }) {
+export function createStdioTransport({ command, args = [], env = {}, cwd, listToolsTimeoutMs }) {
   const base = { server: command ?? 'stdio', tool: '*', mocked: false };
+  const LIST_TIMEOUT_MS = Number.isFinite(listToolsTimeoutMs) && listToolsTimeoutMs > 0
+    ? listToolsTimeoutMs
+    : CALL_TIMEOUT_MS;
   /** @type {import('node:child_process').ChildProcess|null} */
   let proc = null;
   let nextId = 1;
@@ -130,9 +159,27 @@ export function createStdioTransport({ command, args = [] }) {
     pending.clear();
   };
 
+  /** Tail stderr: tối đa ~40 dòng cuối (kèm trần ký tự). */
+  const stderrTailText = () => {
+    const lines = stderrTail.split('\n').filter((l) => l.trim()).slice(-STDERR_TAIL_LINES);
+    return lines.join('\n').slice(-STDERR_TAIL_CHARS);
+  };
+
   const start = () => {
     if (proc || closed) return proc;
-    proc = spawn(command, args, { stdio: ['pipe', 'pipe', 'pipe'] });
+    /** @type {Record<string, string>} */
+    const slimEnv = {};
+    for (const k of SPAWN_ENV_KEYS) {
+      if (process.env[k] != null) slimEnv[k] = process.env[k];
+    }
+    // detached → process con đứng đầu process group của nó để close() kill được CẢ CÂY
+    // (một số server thật tự spawn helper con — kill riêng cha sẽ để lại orphan).
+    proc = spawn(command, args, {
+      cwd,
+      env: { ...slimEnv, ...(env && typeof env === 'object' ? env : {}) },
+      stdio: ['pipe', 'pipe', 'pipe'],
+      detached: process.platform !== 'win32',
+    });
     proc.stdout?.setEncoding('utf8');
     proc.stdout?.on('data', (chunk) => {
       buf += chunk;
@@ -144,28 +191,54 @@ export function createStdioTransport({ command, args = [] }) {
       }
     });
     proc.stderr?.setEncoding('utf8');
-    proc.stderr?.on('data', (d) => { stderrTail = `${stderrTail}${d}`.slice(-2000); });
+    proc.stderr?.on('data', (d) => { stderrTail = `${stderrTail}${d}`.slice(-STDERR_TAIL_CHARS); });
     proc.on('error', (e) => { failAll(`stdio spawn lỗi: ${e.message}`); });
     proc.on('exit', (code) => {
-      proc = null; handshook = false;
-      failAll(`stdio process đã thoát (code ${code})${stderrTail ? `: ${stderrTail.split('\n').pop()}` : ''}`);
+      proc = null; handshook = false; buf = '';
+      const tail = stderrTailText();
+      failAll(`stdio process đã thoát (code ${code})${tail ? `:\n${tail}` : ''}`);
     });
     return proc;
+  };
+
+  /** Kill cả process tree (process group khi detached) rồi fallback kill riêng. */
+  const killTree = (p, sig = 'SIGTERM') => {
+    try {
+      if (p.pid && process.platform !== 'win32') process.kill(-p.pid, sig);
+      else p.kill(sig);
+    } catch { try { p.kill(sig); } catch { /* ignore */ } }
+  };
+
+  const writeLine = (obj) => {
+    try { proc?.stdin?.write(`${JSON.stringify(obj)}\n`); } catch { /* stdin chết → pending sẽ timeout/reject */ }
   };
 
   const handleLine = (line) => {
     let msg;
     try { msg = JSON.parse(line); } catch { return; } // bỏ dòng không phải JSON
-    if (msg == null || msg.id == null) return; // notification → bỏ qua
-    const p = pending.get(Number(msg.id));
+    if (!msg || typeof msg !== 'object') return;
+    // Server→client REQUEST (vd 'ping', 'sampling/createMessage'): không hỗ trợ → trả lỗi -32601
+    if (typeof msg.method === 'string') {
+      if (msg.id != null) {
+        writeLine({
+          jsonrpc: '2.0',
+          id: msg.id,
+          error: { code: -32601, message: `method not found: ${msg.method}` },
+        });
+      }
+      return; // notification từ server → ignore
+    }
+    if (msg.id == null) return; // response phải có id
+    const idNum = Number(msg.id);
+    const p = Number.isFinite(idNum) ? pending.get(idNum) : undefined;
     if (!p) return;
-    pending.delete(Number(msg.id));
+    pending.delete(idNum);
     clearTimeout(p.timer);
     p.resolve(msg);
   };
 
   /**
-   * Gửi 1 JSON-RPC request và chờ response (timeout 10s).
+   * Gửi 1 JSON-RPC request và chờ response.
    * @returns {Promise<{result?:any, error?:{code:number,message:string}}>}
    */
   const request = (method, params, timeoutMs = CALL_TIMEOUT_MS) => new Promise((resolve, reject) => {
@@ -185,10 +258,10 @@ export function createStdioTransport({ command, args = [] }) {
   });
 
   const notify = (method, params = {}) => {
-    try { proc?.stdin?.write(`${JSON.stringify({ jsonrpc: '2.0', method, params })}\n`); } catch { /* ignore */ }
+    writeLine({ jsonrpc: '2.0', method, params });
   };
 
-  /** Handshake MCP: initialize → notifications/initialized (chạy đúng 1 lần). */
+  /** Handshake MCP spec: initialize → result → notifications/initialized (chạy đúng 1 lần). */
   let initPromise = null;
   const handshake = () => {
     if (handshook) return Promise.resolve();
@@ -196,10 +269,10 @@ export function createStdioTransport({ command, args = [] }) {
       initPromise = request('initialize', {
         protocolVersion: '2024-11-05',
         capabilities: {},
-        clientInfo: { name: 'upio-executor', version: '1.0.0' },
-      }).then((msg) => {
+        clientInfo: { name: 'upio-harness', version: '1.0.0' },
+      }, INIT_TIMEOUT_MS).then((msg) => {
         if (msg.error) throw new Error(`initialize bị từ chối: ${msg.error.message}`);
-        notify('notifications/initialized');
+        notify('notifications/initialized'); // CHỈ gửi sau khi có result initialize
         handshook = true;
       }).catch((e) => { initPromise = null; throw e; });
     }
@@ -209,8 +282,8 @@ export function createStdioTransport({ command, args = [] }) {
   return {
     kind: 'stdio',
     async listTools() {
-      await handshake();
-      const msg = await request('tools/list');
+      await handshake(); // chưa handshake xong thì chưa được tools/*
+      const msg = await request('tools/list', {}, LIST_TIMEOUT_MS);
       if (msg.error) throw new Error(msg.error.message);
       return Array.isArray(msg.result?.tools) ? msg.result.tools : [];
     },
@@ -225,7 +298,7 @@ export function createStdioTransport({ command, args = [] }) {
       if (closed) return errResult(b, t0, 'transport đã đóng');
       try {
         await handshake();
-        const msg = await request('tools/call', { name: tool, arguments: args });
+        const msg = await request('tools/call', { name: tool, arguments: args }, ctx?.timeoutMs);
         if (msg.error) return errResult(b, t0, msg.error.message ?? 'JSON-RPC error', { code: msg.error.code });
         const out = extractMcpCall(msg.result);
         return out.ok
@@ -237,12 +310,16 @@ export function createStdioTransport({ command, args = [] }) {
     },
     async close() {
       closed = true;
+      handshook = false;
+      initPromise = null;
       failAll('transport đã đóng');
+      buf = '';
       const p = proc;
       proc = null;
       if (!p) return;
-      try { p.kill('SIGTERM'); } catch { /* ignore */ }
-      const force = setTimeout(() => { try { p.kill('SIGKILL'); } catch { /* ignore */ } }, 1500);
+      try { p.stdin?.end(); } catch { /* ignore */ }
+      killTree(p, 'SIGTERM');
+      const force = setTimeout(() => { killTree(p, 'SIGKILL'); }, 1500);
       force.unref?.();
     },
   };

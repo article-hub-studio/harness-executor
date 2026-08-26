@@ -13,3 +13,7 @@ data/audit.jsonl
 .DS_Store
 Thumbs.db
 node_modules/
+
+# MCP thật (cài runtime) + workspace cho filesystem server
+mcp-servers/
+workspace/
