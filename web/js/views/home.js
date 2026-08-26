@@ -2,7 +2,7 @@
    upio web — view Home: hero wordmark, stat cards (icon hoá),
    quick actions, activity feed realtime (SSE 'log').
    ============================================================ */
-import { api, listen, esc, toast, openSheet, store, fmtDur, fmtClock, fmtNum, icon } from '../app.js';
+import { api, listen, esc, toast, openSheet, store, fmtDur, fmtClock, fmtNum, icon, countUp } from '../app.js';
 import { openSkillSheet } from './hub.js';
 
 export async function render(el) {
@@ -46,13 +46,16 @@ export async function render(el) {
   function fillStats(s) {
     if (!s) return; // offline — giữ '—'
     const counts = s.counts || {};
-    $('st-plugins').textContent = fmtNum(counts.plugins);
-    $('st-mcps').textContent = fmtNum(counts.mcps);
-    $('st-skills').textContent = fmtNum(counts.skills);
+    countUp($('st-plugins'), counts.plugins, { fmt: fmtNum });
+    countUp($('st-mcps'), counts.mcps, { fmt: fmtNum });
+    countUp($('st-skills'), counts.skills, { fmt: fmtNum });
     const conn = typeof s.connectedMcps === 'number' ? s.connectedMcps : null;
-    $('st-connected').innerHTML = conn === null
-      ? '&nbsp;'
-      : `${icon('solar/activity', 'ic-xs')} ${esc(String(conn))} connected`;
+    const connEl = $('st-connected');
+    if (conn === null) { connEl.innerHTML = '&nbsp;'; }
+    else {
+      connEl.innerHTML = `${icon('solar/activity', 'ic-xs')} <span id="st-conn-n">0</span> connected`;
+      countUp(connEl.querySelector('#st-conn-n'), conn, { fmt: fmtNum });
+    }
     $('st-env').textContent = s.env && s.env.node ? `node ${s.env.node}` : '';
   }
 
@@ -112,7 +115,7 @@ export async function render(el) {
         <div><div class="sheet-title">Chạy skill nhanh</div>
         <div class="sheet-sub">${esc(String(skills.length))} skills khả dụng</div></div>
       </div>
-      <div id="skill-pick">${skills.slice(0, 40).map((sk) => `
+      <div id="skill-pick" class="stagger">${skills.slice(0, 40).map((sk) => `
         <button type="button" class="card row-card" data-skill-id="${esc(sk.id)}">
           <span class="rc-icon">${sk.icon ? esc(sk.icon) : icon('blade/sparkles', '')}</span>
           <span class="rc-main">

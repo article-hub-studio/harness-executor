@@ -73,7 +73,7 @@ export async function render(el) {
         <div class="empty-ico">${icon('solar/server', 'ic-lg')}</div><b>API offline</b>
         <p class="dim">Không tải được registry. Kiểm tra backend rồi thử lại.</p>
         <button type="button" class="btn primary small" id="hub-retry" style="margin-top:12px">${icon('blade/refresh', 'ic-sm')} Thử lại</button></div>`;
-      $('hub-retry').addEventListener('click', () => { state.loaded = false; ensureData().then((ok) => ok && renderAll()); });
+      $('hub-retry').addEventListener('click', () => { state.loaded = false; ensureData().then((ok) => ok && renderAll(true)); });
       return false;
     }
     return true;
@@ -149,10 +149,13 @@ export async function render(el) {
       </button>`;
   }
 
-  function renderList() {
+  /** stagger=true → list entrance lần lượt (lần đầu/tab/chip); false khi filter/SSE để không nhấp nháy. */
+  function renderList(stagger = false) {
     const arr = items();
     const slice = arr.slice(0, state.limit);
-    $('hub-list').innerHTML = slice.length
+    const listEl = $('hub-list');
+    listEl.classList.toggle('stagger', !!stagger && slice.length > 0);
+    listEl.innerHTML = slice.length
       ? slice.map(cardHTML).join('')
       : `<div class="card pad empty" style="grid-column:1/-1"><div class="empty-ico">${icon('blade/search', 'ic-lg')}</div>
          <b>Không tìm thấy mục nào</b><p class="dim">Thử đổi từ khóa hoặc bỏ chip lọc.</p></div>`;
@@ -161,7 +164,7 @@ export async function render(el) {
     more.textContent = `Xem thêm (${arr.length - state.limit})`;
   }
 
-  function renderAll() { renderChips(); renderList(); }
+  function renderAll(stagger = false) { renderChips(); renderList(stagger); }
 
   /* ---------------- Controls ---------------- */
   $('hub-seg').addEventListener('click', (e) => {
@@ -171,20 +174,20 @@ export async function render(el) {
     state.cat = '';
     state.limit = 40;
     el.querySelectorAll('.seg-btn').forEach((x) => x.classList.toggle('active', x === b));
-    renderAll();
+    renderAll(true);
   });
 
   $('hub-search').addEventListener('input', debounce((e) => {
     state.q = e.target.value;
     state.limit = 40;
-    renderList();
+    renderList(false);
   }, 250));
 
   $('hub-chips').addEventListener('click', (e) => {
     const c = e.target.closest('.chip');
     if (!c) return;
     state.cat = c.dataset.cat === 'All' ? '' : c.dataset.cat;
-    renderAll();
+    renderAll(true);
   });
 
   $('hub-more').addEventListener('click', () => { state.limit += 40; renderList(); });
@@ -203,7 +206,7 @@ export async function render(el) {
   // Cập nhật dot trạng thái khi server broadcast SSE 'mcp'
   const offMcp = listen('mcp', (evt) => {
     const it = state.mcps.find((m) => m.id === evt.id || (evt.server && m.id === evt.server));
-    if (it && evt.state) { it.state = evt.state; if (state.tab === 'mcps') renderList(); }
+    if (it && evt.state) { it.state = evt.state; if (state.tab === 'mcps') renderList(false); }
   });
 
   /* ================= Sheet MCP ================= */
@@ -355,8 +358,10 @@ export async function render(el) {
             <span class="acc-caret">${icon('blade/chevr', 'ic-sm')}</span>
           </button>
           <div class="acc-body">
-            <div>${esc(t.description)}</div>
-            <div class="schema-box">${esc(schemaHint(t))}</div>
+            <div class="acc-inner">
+              <div>${esc(t.description)}</div>
+              <div class="schema-box">${esc(schemaHint(t))}</div>
+            </div>
           </div>
         </div>`).join('');
       area.onclick = (e) => {
@@ -461,7 +466,7 @@ export async function render(el) {
 
   /* ---------------- boot view ---------------- */
   const ok = await ensureData();
-  if (ok) renderAll();
+  if (ok) renderAll(true);
 
   return () => { offMcp(); };
 }

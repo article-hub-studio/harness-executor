@@ -89,6 +89,29 @@ export function debounce(fn, ms = 250) {
   return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
 }
 
+/* Đếm số nhảy lên cho stat values (tôn trọng prefers-reduced-motion). */
+const _countRafs = new WeakMap();
+
+export function countUp(el, to, { dur = 550, fmt = (n) => String(n) } = {}) {
+  if (!el) return;
+  const target = Number(to) || 0;
+  const from = Number(el.dataset.countV ?? 0) || 0;
+  el.dataset.countV = String(target);
+  let reduce = false;
+  try { reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { /* ignore */ }
+  const prevRaf = _countRafs.get(el);
+  if (prevRaf) cancelAnimationFrame(prevRaf);
+  if (reduce || from === target) { el.textContent = fmt(target); return; }
+  const t0 = performance.now();
+  const step = (t) => {
+    const p = Math.min(1, (t - t0) / dur);
+    const eased = 1 - Math.pow(1 - p, 3); // ease-out cubic
+    el.textContent = fmt(Math.round(from + (target - from) * eased));
+    if (p < 1) _countRafs.set(el, requestAnimationFrame(step));
+  };
+  _countRafs.set(el, requestAnimationFrame(step));
+}
+
 export function truncate(s, n = 500) {
   s = String(s ?? '');
   return s.length > n ? s.slice(0, n) + '…' : s;

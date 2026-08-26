@@ -23,7 +23,7 @@ export async function render(el) {
         <div class="card pad" id="env-card">
           <h3 class="card-title">${icon('blade/build', 'ic-sm')} Environment</h3>
           <div id="env-summary" class="tag-row" style="margin-bottom:6px"></div>
-          <div id="env-checks"><div class="skel skel-line" style="width:100%"></div><div class="skel skel-line" style="width:88%;margin-top:8px"></div><div class="skel skel-line" style="width:70%;margin-top:8px"></div></div>
+          <div id="env-checks" class="stagger"><div class="skel skel-line" style="width:100%"></div><div class="skel skel-line" style="width:88%;margin-top:8px"></div><div class="skel skel-line" style="width:70%;margin-top:8px"></div></div>
           <div class="form-grid cols-2" style="margin-top:14px">
             <button type="button" class="btn ghost" id="env-scan">${icon('blade/refresh', 'ic-sm')} Scan again</button>
             <button type="button" class="btn primary" id="env-build">${icon('blade/build', 'ic-sm')} Build Environment</button>
@@ -48,7 +48,7 @@ export async function render(el) {
       <section>
         <div class="card pad" id="models-card">
           <h3 class="card-title">${icon('solar/cpu', 'ic-sm')} Models</h3>
-          <div id="model-list"><div class="skel skel-line" style="width:100%"></div></div>
+          <div id="model-list" class="stagger"><div class="skel skel-line" style="width:100%"></div></div>
 
           <h4 class="sec-title">Provider OpenAI-compatible</h4>
           <form id="provider-form">
@@ -79,7 +79,7 @@ export async function render(el) {
         <!-- (3) About -->
         <div class="card pad" style="margin-top:14px">
           <h3 class="card-title">${icon('solar/book', 'ic-sm')} About</h3>
-          <div class="about-list">
+          <div class="about-list stagger">
             <div><span class="k">Version</span><b id="about-ver">—</b></div>
             <div><span class="k">Stack</span><span>Vanilla ES modules · CSS thuần · zero-dependency Node</span></div>
             <div><span class="k">Registry</span><span>${esc(String(store.counts.mcps || '98'))} MCPs · ${esc(String(store.counts.plugins || '143'))} plugins · ${esc(String(store.counts.skills || '41'))} skills</span></div>
@@ -192,7 +192,12 @@ export async function render(el) {
   /* ================= THEME ================= */
   const themeBtn = $('theme-toggle');
   themeBtn.checked = isDark();
+  let themeFxTimer = null;
   themeBtn.addEventListener('change', () => {
+    // Crossfade màu toàn cục trong lúc flip (class tự tắt sau ~400ms)
+    document.documentElement.classList.add('theming');
+    clearTimeout(themeFxTimer);
+    themeFxTimer = setTimeout(() => document.documentElement.classList.remove('theming'), 420);
     applyTheme(themeBtn.checked);
     toast(themeBtn.checked ? 'Dark theme' : 'Light theme', 'info');
   });

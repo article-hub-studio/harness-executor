@@ -147,6 +147,9 @@ export async function render(el) {
       <p class="dim">Spawn agent đầu tiên bằng form phía trên.</p></div>`;
   }
 
+  let lastListSig = null;   // chống re-render + re-animation khi poll 2s không đổi gì
+  let hadItems = false;
+
   function drawList() {
     const listEl = $('agent-list');
     const badge = $('ag-count-badge');
@@ -154,9 +157,18 @@ export async function render(el) {
     badge.textContent = `${items.length} agent`;
     badge.className = `badge mini ${items.length ? 'info' : 'disconnected'}`;
     if (!items.length) {
+      lastListSig = '';
+      hadItems = false;
+      listEl.classList.remove('stagger');
       listEl.innerHTML = emptyListHTML();
       return;
     }
+    // Chỉ vẽ lại khi dữ liệu thật sự đổi (tránh nhấp nháy animation mỗi lần poll)
+    const sig = items.map((a) => `${a.id}:${a.status}:${a.stepsDone ?? ''}`).join('|');
+    if (sig === lastListSig) return;
+    listEl.classList.toggle('stagger', !hadItems); // entrance stagger chỉ lần đầu có dữ liệu
+    lastListSig = sig;
+    hadItems = true;
     listEl.innerHTML = [...items].reverse().map((a) => `
       <button type="button" class="card agent-card ${a.status === 'running' ? 'status-running' : ''}" data-id="${esc(a.id)}">
         <span class="agent-top">
