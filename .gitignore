@@ -17,3 +17,4 @@ node_modules/
 # MCP thật (cài runtime) + workspace cho filesystem server
 mcp-servers/
 workspace/
+Screenshot_*.jpg
