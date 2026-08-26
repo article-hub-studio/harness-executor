@@ -162,9 +162,10 @@
   }
 
   function probe(base) {
-    return fetch(base + '/api/status', { signal: AbortSignal.timeout(2500) })
-      .then(function (r) { return r.json(); })
-      .then(function (j) { return (j && j.ok === true) ? base : null; })
+    // mode 'no-cors': chỉ cần TCP/HTTP phản hồi là coi như server sống —
+    // không bao giờ vướng CORS dù server cũ chưa có header Access-Control-Allow-Origin
+    return fetch(base + '/api/status', { mode: 'no-cors', cache: 'no-store', signal: AbortSignal.timeout(2500) })
+      .then(function () { return base; })
       .catch(function () { return null; });
   }
 

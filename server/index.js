@@ -18,7 +18,7 @@ const ROOT = path.resolve(__dirname, '..');
 const PORT = Number(process.env.PORT || 8787);
 const DATA_DIR = path.join(ROOT, 'data');
 const WEB_DIR = path.join(ROOT, 'web');
-const VERSION = '1.1.0';
+const VERSION = '1.1.2';
 const STARTED = Date.now();
 
 const MIME = {
@@ -386,6 +386,17 @@ function serveStatic(req, res, pathname) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host ?? 'localhost'}`);
   const pathname = url.pathname;
+
+  // CORS mở cho API — APK launcher (origin capacitor) và web client ngoài cần nó
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, {
+      'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+      'Access-Control-Allow-Headers': 'content-type,authorization',
+      'Access-Control-Max-Age': '86400',
+    });
+    return res.end();
+  }
 
   try {
     if (pathname.startsWith('/api/') || pathname.startsWith('/v1/')) {
