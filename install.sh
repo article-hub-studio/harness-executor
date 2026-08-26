@@ -94,14 +94,32 @@ if ! command -v git >/dev/null 2>&1; then
 fi
 
 # ---------- 3. clone / update ----------
-if [ -d "$DIR/.git" ]; then
-  say "Cập nhật mã nguồn tại $DIR…"
-  git -C "$DIR" fetch origin "$BRANCH" --quiet
-  git -C "$DIR" reset --hard "origin/$BRANCH" --quiet
-else
-  say "Clone repository vào $DIR …"
+# Repo phải THẬT SỰ hợp lệ mới đi đường update; hỏng/dở thì xoá sạch clone lại
+repo_ok() {
+  [ -d "$DIR/.git" ] \
+    && git -C "$DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1 \
+    && git -C "$DIR" remote get-url origin >/dev/null 2>&1
+}
+
+safe_clone() {
   rm -rf "$DIR"
-  git clone --depth 1 -b "$BRANCH" "$REPO_URL" "$DIR" --quiet || die "clone thất bại"
+  git clone --depth 1 -b "$BRANCH" "$REPO_URL" "$DIR" --quiet || die "clone thất bại — kiểm tra mạng rồi chạy lại"
+}
+
+if repo_ok; then
+  say "Cập nhật mã nguồn tại $DIR…"
+  if ! ( git -C "$DIR" fetch origin "$BRANCH" --quiet \
+         && git -C "$DIR" reset --hard "origin/$BRANCH" --quiet ); then
+    warn "Repo hiện tại hỏng/không cập nhật được — tải lại từ đầu…"
+    safe_clone
+  fi
+else
+  if [ -d "$DIR" ]; then
+    say "Thư mục $DIR có sẵn nhưng không phải repo hợp lệ — tải lại từ đầu…"
+  else
+    say "Clone repository vào $DIR …"
+  fi
+  safe_clone
 fi
 cd "$DIR"
 
