@@ -132,6 +132,12 @@ mkdir -p workspace mcp-servers
 
 # ---------- 5. chạy ----------
 export PORT
+
+# Termux: giữ CPU thức dậy để Android không giết server khi thu nhỏ/tắt màn
+if $IS_TERMUX && command -v termux-wake-lock >/dev/null 2>&1; then
+  say "Giữ wake-lock (chống Android kill tiến trình)…"
+  termux-wake-lock 2>/dev/null || warn "không đặt được wake-lock — đừng vuốt tắt app Termux"
+fi
 LAN_IPS=$(hostname -I 2>/dev/null | tr ' ' '\n' | grep -E '^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)' | head -3 || true)
 
 case "$MODE" in
@@ -172,9 +178,14 @@ esac
 
 echo ""
 ok  "Harness Executor sẵn sàng!"
-echo "   ┌─ Mở trên điện thoại / APK:"
+echo "   ┌─ Mở trên điện thoại / APK (cùng Wi-Fi):"
 $([ -n "$LAN_IPS" ]) && for ip in $LAN_IPS; do echo "   │    http://$ip:$PORT"; done
-echo "   ├─ Máy này:            http://localhost:$PORT"
-echo "   └─ Dừng (Ctrl+C) hoặc: systemctl --user stop harness"
+echo "   ├─ Trên CHÍNH máy này:  http://localhost:$PORT"
+if $IS_TERMUX; then
+  echo "   └─ APK cài trên máy này sẽ tự tìm thấy ở 127.0.0.1:$PORT"
+  echo "      ⚠ ĐỪNG vuốt tắt Termux — đã bật wake-lock nhưng Android vẫn có thể kill"
+else
+  echo "   └─ Dừng (Ctrl+C) hoặc: systemctl --user stop harness"
+fi
 echo ""
 [ "$(basename "$0")" = "install.sh" ] && [ "$MODE" = "run" ] && exec node server/index.js
