@@ -28,13 +28,16 @@ node server/index.js          # hoặc: ./start.sh  hoặc: npm start
 # ➜ http://localhost:8787     (đổi cổng: PORT=3000 node server/index.js)
 ```
 
+**Tự động khi mở app**: server tự chạy Environment Builder (tạo thư mục, ghi `.env`, dọn tmp) → **tự connect toàn bộ 98 MCP builtin (~0,3s)** → frontend hiện boot overlay tiến độ rồi vào thẳng Home. Theo dõi qua `GET /api/boot` và SSE event `boot`.
+
 Mở trên điện thoại cùng mạng Wi‑Fi: `http://<IP-máy-tính>:8787`.
 Kiểm thử toàn bộ hệ thống:
 
 ```bash
 npm run smoke                 # cần server đang chạy
 npm run generate              # sinh lại data/*.json (98/143/41 — deterministic)
-npm run icons                 # sinh lại icon PNG cho PWA
+npm run icons                 # sinh lại icon PNG cho PWA (trắng–đen)
+npm run build-icons           # tái sinh web/js/icons.js (cần: npm i --no-save @iconify-json/solar @iconify-json/heroicons)
 ```
 
 ## 📲 Cài PWA lên điện thoại

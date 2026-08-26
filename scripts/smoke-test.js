@@ -51,6 +51,23 @@ await check('GET /api/status (counts đúng 98/143)', async () => {
   return `node ${j.env?.node}`;
 });
 
+let boot;
+await check('Auto-boot: env setup + tự connect MCP', async () => {
+  const deadline = Date.now() + 15000;
+  while (Date.now() < deadline) {
+    const r = await req('GET', '/api/boot');
+    if (r.json?.phase === 'ready' || r.json?.phase === 'error') { boot = r.json; break; }
+    await new Promise((r2) => setTimeout(r2, 400));
+  }
+  assert(boot && boot.phase === 'ready', `boot phase=${boot?.phase ?? 'no-response'} ${boot?.error ?? ''}`);
+  const names = boot.steps.map((s) => s.name);
+  assert(names.includes('environment'), 'thiếu step environment');
+  assert(names.includes('connect-mcp'), 'thiếu step connect-mcp');
+  const st = expectOk(await req('GET', '/api/status'), 'status sau boot');
+  assert(st.connectedMcps >= 95, `connectedMcps=${st.connectedMcps} quá ít`);
+  return `${st.connectedMcps}/98 tự kết nối`;
+});
+
 let pluginId;
 await check('GET /api/plugins (search + chi tiết)', async () => {
   const list = expectOk(await req('GET', '/api/plugins?q=guard'), 'plugins');

@@ -3,22 +3,26 @@
    bubbles user/assistant, stream typewriter qua /v1/chat/completions,
    history client-side, New chat, Enter gửi / Shift+Enter xuống dòng.
    ============================================================ */
-import { chatCompletion, esc, listen, store } from '../app.js';
+import { chatCompletion, esc, listen, store, icon, toast } from '../app.js';
 
 export async function render(el) {
   el.innerHTML = `
     <div class="chat-top">
       <select class="input" id="chat-model" aria-label="Chọn model"></select>
-      <button type="button" class="btn ghost small" id="chat-new">🧹 New chat</button>
+      <button type="button" class="btn ghost small" id="chat-new">${icon('blade/trash', 'ic-sm')} New chat</button>
     </div>
     <div class="chat-scroll" id="chat-scroll">
       <div class="chat-inner" id="chat-inner">
-        <div class="chat-empty" id="chat-empty">💬<br>Bắt đầu cuộc trò chuyện với model.<br><span class="dim">Enter gửi · Shift+Enter xuống dòng</span></div>
+        <div class="chat-empty" id="chat-empty">
+          <span class="empty-ico">${icon('solar/chat', 'ic-lg')}</span><br>
+          Bắt đầu cuộc trò chuyện với model.<br>
+          <span class="dim">Enter gửi · Shift+Enter xuống dòng</span>
+        </div>
       </div>
     </div>
     <form class="chat-input-bar" id="chat-bar">
       <textarea class="input" id="chat-input" rows="1" placeholder="Nhập tin nhắn…" enterkeyhint="send"></textarea>
-      <button type="submit" class="send-btn" id="chat-send" disabled title="Gửi">✈</button>
+      <button type="submit" class="send-btn" id="chat-send" disabled title="Gửi" aria-label="Gửi">${icon('blade/send', '')}</button>
     </form>`;
 
   const $ = (id) => el.querySelector('#' + id);
@@ -114,8 +118,8 @@ export async function render(el) {
       messages.push({ role: 'assistant', content: content || txtNode.textContent });
     } catch (err) {
       if (!(err && err.name === 'AbortError')) {
-        bubble.classList.add('error'); // bubble đỏ
-        txtNode.textContent += (txtNode.textContent ? '\n\n' : '') + `⛔ ${err.message}`;
+        bubble.classList.add('error'); // bubble lỗi
+        txtNode.textContent += (txtNode.textContent ? '\n\n' : '') + `Lỗi: ${err.message}`;
       }
     } finally {
       cursor.remove();

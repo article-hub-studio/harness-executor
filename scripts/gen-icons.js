@@ -60,7 +60,8 @@ const sdRoundRect = (px, py, cx, cy, hx, hy, r) => {
 
 function drawIcon(S) {
   const px = Buffer.alloc(S * S * 4);
-  const TEAL = [20, 184, 166], VIOLET = [139, 92, 246], WHITE = [248, 250, 252];
+  const BG = [17, 17, 19];        // nền đen #111113
+  const WHITE = [255, 255, 255];
   const R = S * 0.225;              // bo góc icon
   const half = S / 2;
   const ringOuter = S * 0.27, ringInner = S * 0.175, ringR = S * 0.09;
@@ -69,12 +70,11 @@ function drawIcon(S) {
   for (let y = 0; y < S; y++) {
     for (let x = 0; x < S; x++) {
       const i = (y * S + x) * 4;
-      // nền gradient chéo trong hình vuông bo góc
+      // nền phẳng trong hình vuông bo góc (trắng–đen tối giản)
       const dCorner = sdRoundRect(x + 0.5, y + 0.5, half, half, half - 0.5, half - 0.5, R);
       const bgA = clamp01(0.5 - dCorner / aa);
       if (bgA <= 0) { px[i + 3] = 0; continue; }
-      const t = clamp01((x + y) / (2 * S));
-      let r = lerp(TEAL[0], VIOLET[0], t), g = lerp(TEAL[1], VIOLET[1], t), b = lerp(TEAL[2], VIOLET[2], t);
+      let r = BG[0], g = BG[1], b = BG[2];
       // vòng "executor" trắng
       const sdO = sdRoundRect(x + 0.5, y + 0.5, half, half, ringOuter, ringOuter, ringR);
       const sdI = sdRingInner(x + 0.5, y + 0.5, half, ringInner, ringR * 0.8);

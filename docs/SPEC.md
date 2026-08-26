@@ -68,7 +68,8 @@ WebUI mobile-first (PWA) + backend Node.js cho **upio MCP Executor**:
 - `GET  /api/agents` → `{items:[{id,name,task,status,stepsDone,model,createdAt}]}`; `POST /api/agents` body `{task, name?, model?, maxSteps?, tools?:[{server,tool}]}` → `{id}`
 - `GET  /api/agents/:id` → `{id,...,steps:[{i,thought,action,observation,at}], answer?}`
 - `POST /api/agents/:id/cancel` → `{ok}`
-- `GET  /api/events` — **SSE**, event types: `log`, `skill-run`, `env`, `agent-step`, `mcp`, `plugin`. Payload luôn JSON string. Gửi `retry: 3000`.
+- `GET  /api/events` — **SSE**, event types: `log`, `skill-run`, `env`, `agent-step`, `mcp`, `plugin`, `boot`. Payload luôn JSON string. Gửi `retry: 3000`.
+- `GET  /api/boot` → `{phase:'booting'|'ready'|'error', startedAt, finishedAt?, steps:[{name,status,ms?,detail?}], error?}` — server TỪ động chạy EnvBuilder.build(repair) + connect toàn bộ MCP builtin ngay khi listen; tiến độ phát qua SSE `boot` và `log` (`payload.boot===true`).
 
 ## 5. Hợp đồng từng module
 
@@ -130,7 +131,8 @@ Vanilla ES modules, KHÔNG framework, KHÔNG build. Trang shell `index.html` + `
 - **Agents**: form tạo agent (task textarea, số bước, chọn tools từ MCP đã connect, model), danh sách agent với progress, xem chi tiết từng step thought/action/observation, cancel.
 - **Chat**: giao diện chat qua `/v1/chat/completions` (stream hiển thị typewriter), chọn model từ `/api/models`.
 - **Settings**: Environment (nút Scan/Build + checklist pass/warn/fail), Models (thêm/sửa provider OpenAI-compatible, Test), About.
-- PWA: `manifest.webmanifest`, `sw.js` (cache-first cho static, network cho /api), theme dark mặc định + toggle light, CSS custom properties, skeleton loading, toast, pull area refresh. Icon SVG/PNG trong `web/icons/`.
+- PWA: `manifest.webmanifest`, `sw.js` (cache-first cho static, network cho /api), theme **trắng–đen tối giản** (light mặc định + dark toggle), CSS custom properties, skeleton loading, toast, pull area refresh. Icon SVG nhúng trực tiếp qua `web/js/icons.js` (99 icon: bộ Solar cho chrome/điều hướng + Heroicons phong cách Blade cho thao tác — sinh bởi `scripts/build-icons.js`); icon PNG trắng–đen trong `web/icons/`.
+- Boot overlay: khi mở app, nếu `/api/boot.phase !== 'ready'` hiện màn hình setup 3 bước (môi trường → kết nối MCP → sẵn sàng) với log trực tiếp, fade out khi ready.
 - `api.js` trung tâm gọi REST + SSE reconnect. Xử lý offline (banner "Offline").
 
 ## 6. Server chính (MAIN viết sẵn — subagent KHỐNG can thiệp)

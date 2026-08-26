@@ -1,31 +1,31 @@
 /* ============================================================
-   upio web — view Home: hero, stat cards, quick actions,
-   activity feed realtime (SSE 'log').
+   upio web — view Home: hero wordmark, stat cards (icon hoá),
+   quick actions, activity feed realtime (SSE 'log').
    ============================================================ */
-import { api, listen, esc, toast, openSheet, store, fmtDur, fmtClock, fmtNum } from '../app.js';
+import { api, listen, esc, toast, openSheet, store, fmtDur, fmtClock, fmtNum, icon } from '../app.js';
 import { openSkillSheet } from './hub.js';
 
 export async function render(el) {
   el.innerHTML = `
   <div class="container">
     <header class="hero">
-      <h1 class="hero-brand">upio <span class="hero-zap">⚡</span> executor</h1>
+      <h1 class="hero-brand"><span class="wm">upio<span class="wm-dot"></span></span><span class="hero-sub" style="margin-top:0">executor</span></h1>
       <p class="hero-sub">Mobile control plane cho MCP servers · plugins · skills · agents</p>
     </header>
 
     <!-- Stat grid -->
     <section class="stat-grid" aria-label="Thống kê">
-      <div class="card stat"><div class="stat-label">⏱️ Uptime</div><div class="stat-value" id="st-uptime">—</div><div class="stat-sub" id="st-env"></div></div>
-      <div class="card stat"><div class="stat-label">🧩 Plugins</div><div class="stat-value" id="st-plugins">—</div><div class="stat-sub"></div></div>
-      <div class="card stat hl"><div class="stat-label">🔌 MCPs</div><div class="stat-value" id="st-mcps">—</div><div class="stat-sub" id="st-connected">&nbsp;</div></div>
-      <div class="card stat"><div class="stat-label">✨ Skills</div><div class="stat-value" id="st-skills">—</div><div class="stat-sub"></div></div>
+      <div class="card stat"><div class="stat-label">${icon('blade/clock', 'ic-xs')}Uptime</div><div class="stat-value" id="st-uptime">—</div><div class="stat-sub" id="st-env"></div></div>
+      <div class="card stat"><div class="stat-label">${icon('solar/puzzle', 'ic-xs')}Plugins</div><div class="stat-value" id="st-plugins">—</div><div class="stat-sub"></div></div>
+      <div class="card stat hl"><div class="stat-label">${icon('solar/server', 'ic-xs')}MCPs</div><div class="stat-value" id="st-mcps">—</div><div class="stat-sub" id="st-connected">&nbsp;</div></div>
+      <div class="card stat"><div class="stat-label">${icon('solar/book', 'ic-xs')}Skills</div><div class="stat-value" id="st-skills">—</div><div class="stat-sub"></div></div>
     </section>
 
     <!-- Quick actions -->
     <h2 class="sec-title">Quick actions</h2>
     <section class="qa-row">
-      <button type="button" class="btn primary" id="qa-build">🩺 Build Environment</button>
-      <button type="button" class="btn ghost" id="qa-skill">✨ Run skill gợi ý</button>
+      <button type="button" class="btn primary" id="qa-build">${icon('blade/build', 'ic-sm')} Build Environment</button>
+      <button type="button" class="btn ghost" id="qa-skill">${icon('blade/sparkles', 'ic-sm')} Run skill gợi ý</button>
     </section>
 
     <!-- Activity feed -->
@@ -33,7 +33,7 @@ export async function render(el) {
     <section class="card feed-card">
       <ul class="feed" id="feed"></ul>
       <div class="empty" id="feed-empty">
-        <div class="empty-ico">📡</div>
+        <div class="empty-ico">${icon('solar/activity', 'ic-lg')}</div>
         <p><b>Chưa có hoạt động nào</b></p>
         <p class="dim">Feed sẽ chạy realtime khi nhận SSE event <code>log</code> từ server.</p>
       </div>
@@ -50,7 +50,9 @@ export async function render(el) {
     $('st-mcps').textContent = fmtNum(counts.mcps);
     $('st-skills').textContent = fmtNum(counts.skills);
     const conn = typeof s.connectedMcps === 'number' ? s.connectedMcps : null;
-    $('st-connected').innerHTML = conn === null ? '&nbsp;' : esc(`⚡ ${conn} connected`);
+    $('st-connected').innerHTML = conn === null
+      ? '&nbsp;'
+      : `${icon('solar/activity', 'ic-xs')} ${esc(String(conn))} connected`;
     $('st-env').textContent = s.env && s.env.node ? `node ${s.env.node}` : '';
   }
 
@@ -106,19 +108,19 @@ export async function render(el) {
     btn.classList.remove('loading');
     if (!skills.length) { toast('Không tải được danh sách skills (API offline)', 'warn'); return; }
     openSheet(`
-      <div class="sheet-head"><span class="rc-icon">✨</span>
+      <div class="sheet-head"><span class="rc-icon">${icon('blade/sparkles', '')}</span>
         <div><div class="sheet-title">Chạy skill nhanh</div>
         <div class="sheet-sub">${esc(String(skills.length))} skills khả dụng</div></div>
       </div>
       <div id="skill-pick">${skills.slice(0, 40).map((sk) => `
         <button type="button" class="card row-card" data-skill-id="${esc(sk.id)}">
-          <span class="rc-icon">${esc(sk.icon || '✨')}</span>
+          <span class="rc-icon">${sk.icon ? esc(sk.icon) : icon('blade/sparkles', '')}</span>
           <span class="rc-main">
             <span class="rc-top"><b>${esc(sk.name)}</b></span>
             <span class="rc-desc">${esc(sk.description)}</span>
             <span class="rc-meta">${esc((sk.steps || []).length)} bước · ${esc((sk.inputs || []).length)} input</span>
           </span>
-          <span class="rc-chevron">›</span>
+          <span class="rc-chevron">${icon('blade/chevr', 'ic-sm')}</span>
         </button>`).join('')}
       </div>`);
     document.getElementById('skill-pick').addEventListener('click', (ev) => {
@@ -136,7 +138,9 @@ export async function render(el) {
   function prependLog(evt) {
     const line = evt.line ?? evt.message ?? evt.detail ?? JSON.stringify(evt);
     const li = document.createElement('li');
-    li.innerHTML = `<span class="feed-time">${fmtClock()}</span><span class="feed-line">${esc(line)}</span>`;
+    li.innerHTML =
+      `<span class="feed-time">${icon('blade/clock', 'ic-xs')}${fmtClock()}</span>` +
+      `<span class="feed-line">${esc(line)}</span>`;
     feed.prepend(li);
     while (feed.children.length > 50) feed.lastElementChild.remove(); // giữ tối đa 50 dòng
     feedEmpty.classList.add('hidden');

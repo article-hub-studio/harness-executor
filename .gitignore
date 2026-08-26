@@ -12,3 +12,4 @@ data/audit.jsonl
 # hệ thống
 .DS_Store
 Thumbs.db
+node_modules/

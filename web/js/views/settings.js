@@ -1,31 +1,32 @@
 /* ============================================================
    upio web — view Settings:
-   (1) Environment: checklist + Scan again + Build (+repair) với
-       console log realtime qua SSE 'env', tự refresh checklist.
+   (1) Environment: checklist (icon trạng thái) + Scan again +
+       Build (+repair) với console log realtime qua SSE 'env'.
    (2) Models: list models, thêm/sửa provider OpenAI-compatible,
-       Test latency, Save config PUT, chọn default.
-   (3) About: version, stack, credit upio labs.
+       Test latency, Save config PUT, chọn default, show/hide key.
+   (3) Theme: dark mode toggle (lưu localStorage).
+   (4) About: version, stack, credit upio labs.
    ============================================================ */
-import { api, listen, esc, toast, store, fmtClock, refreshModels } from '../app.js';
+import { api, listen, esc, toast, store, fmtClock, refreshModels, icon, applyTheme, isDark } from '../app.js';
 
 export async function render(el) {
   el.innerHTML = `
   <div class="container">
     <header class="hero">
-      <h1 class="hero-brand">⚙️ Settings</h1>
-      <p class="hero-sub">Environment · Models · About</p>
+      <h1 class="hero-brand">${icon('solar/settings', 'ic-lg')} Settings</h1>
+      <p class="hero-sub">Environment · Models · Theme · About</p>
     </header>
 
     <div class="settings-grid">
       <!-- ============ (1) Environment ============ -->
       <section>
         <div class="card pad" id="env-card">
-          <h3 style="margin-bottom:10px">🩺 Environment</h3>
+          <h3 class="card-title">${icon('blade/build', 'ic-sm')} Environment</h3>
           <div id="env-summary" class="tag-row" style="margin-bottom:6px"></div>
           <div id="env-checks"><div class="skel skel-line" style="width:100%"></div><div class="skel skel-line" style="width:88%;margin-top:8px"></div><div class="skel skel-line" style="width:70%;margin-top:8px"></div></div>
           <div class="form-grid cols-2" style="margin-top:14px">
-            <button type="button" class="btn ghost" id="env-scan">↻ Scan again</button>
-            <button type="button" class="btn primary" id="env-build">🔧 Build Environment</button>
+            <button type="button" class="btn ghost" id="env-scan">${icon('blade/refresh', 'ic-sm')} Scan again</button>
+            <button type="button" class="btn primary" id="env-build">${icon('blade/build', 'ic-sm')} Build Environment</button>
           </div>
           <label class="check-row"><input type="checkbox" id="env-repair"><span>Repair mode (sửa cả cấu hình thiếu)</span></label>
           <div id="env-log-wrap" class="hidden" style="margin-top:10px">
@@ -37,7 +38,7 @@ export async function render(el) {
         <!-- Theme -->
         <div class="card pad" style="margin-top:14px">
           <div class="check-row" style="justify-content:space-between">
-            <b>🎨 Giao diện sáng (light theme)</b>
+            <b style="display:inline-flex;align-items:center;gap:8px">${icon('solar/moon', 'ic-sm')} Chế độ tối (dark theme)</b>
             <span class="switch"><input type="checkbox" id="theme-toggle"><span class="track"></span></span>
           </div>
         </div>
@@ -46,7 +47,7 @@ export async function render(el) {
       <!-- ============ (2) Models + (3) About ============ -->
       <section>
         <div class="card pad" id="models-card">
-          <h3 style="margin-bottom:10px">🧠 Models</h3>
+          <h3 class="card-title">${icon('solar/cpu', 'ic-sm')} Models</h3>
           <div id="model-list"><div class="skel skel-line" style="width:100%"></div></div>
 
           <h4 class="sec-title">Provider OpenAI-compatible</h4>
@@ -61,15 +62,15 @@ export async function render(el) {
               <input class="input mono" name="baseUrl" placeholder="https://api.openai.com/v1" autocomplete="off">
             </div>
             <div class="field"><label>API key
-              (<button type="button" id="ak-eye" style="color:var(--info);font-weight:700">👁 show</button>)</label>
+              (<button type="button" class="linklike" id="ak-eye">${icon('blade/eye', 'ic-xs')} show</button>)</label>
               <input class="input mono" name="apiKey" type="password" placeholder="sk-…" autocomplete="off">
             </div>
             <div class="field"><label>Model ID</label>
               <input class="input mono" name="model" placeholder="gpt-4o-mini" autocomplete="off">
             </div>
             <div class="qa-row">
-              <button type="button" class="btn ghost" id="prov-test">🧪 Test</button>
-              <button type="submit" class="btn primary" id="prov-save">💾 Save config</button>
+              <button type="button" class="btn ghost" id="prov-test">${icon('blade/bolt', 'ic-sm')} Test</button>
+              <button type="submit" class="btn primary" id="prov-save">${icon('blade/download', 'ic-sm')} Save config</button>
             </div>
             <div id="test-out" class="test-out hidden"></div>
           </form>
@@ -77,13 +78,13 @@ export async function render(el) {
 
         <!-- (3) About -->
         <div class="card pad" style="margin-top:14px">
-          <h3 style="margin-bottom:12px">ℹ️ About</h3>
+          <h3 class="card-title">${icon('solar/book', 'ic-sm')} About</h3>
           <div class="about-list">
             <div><span class="k">Version</span><b id="about-ver">—</b></div>
             <div><span class="k">Stack</span><span>Vanilla ES modules · CSS thuần · zero-dependency Node</span></div>
             <div><span class="k">Registry</span><span>${esc(String(store.counts.mcps || '98'))} MCPs · ${esc(String(store.counts.plugins || '143'))} plugins · ${esc(String(store.counts.skills || '41'))} skills</span></div>
-            <div><span class="k">Credit</span><span>© upio labs ⚡</span></div>
-            <div><span class="k">Repo</span><a href="https://github.com/upio-labs/mcp-executor" target="_blank" rel="noopener noreferrer">github.com/upio-labs/mcp-executor</a></div>
+            <div><span class="k">Credit</span><span>© upio labs<span class="wm-dot" style="margin-left:2px"></span></span></div>
+            <div><span class="k">Repo</span><a href="https://github.com/upio-labs/mcp-executor" target="_blank" rel="noopener noreferrer">github.com/upio-labs/mcp-executor ${icon('blade/external', 'ic-xs')}</a></div>
           </div>
         </div>
       </section>
@@ -98,13 +99,13 @@ export async function render(el) {
     if (!data) { $('env-checks').innerHTML = '<p class="dim">Không tải được checklist (API offline).</p>'; return; }
     const sum = data.summary || {};
     $('env-summary').innerHTML =
-      `<span class="badge ok">✅ ${sum.pass ?? 0}</span>` +
-      `<span class="badge warn">⚠️ ${sum.warn ?? 0}</span>` +
-      `<span class="badge fail">❌ ${sum.fail ?? 0}</span>`;
-    const ICO = { pass: '✅', warn: '⚠️', fail: '❌' };
+      `<span class="badge ok">${icon('blade/check', 'ic-xs')} pass ${sum.pass ?? 0}</span>` +
+      `<span class="badge warn">${icon('blade/warn', 'ic-xs')} warn ${sum.warn ?? 0}</span>` +
+      `<span class="badge fail">${icon('blade/error', 'ic-xs')} fail ${sum.fail ?? 0}</span>`;
+    const ICO = { pass: icon('blade/check', 'ic-sm'), warn: icon('blade/warn', 'ic-sm'), fail: icon('blade/error', 'ic-sm') };
     $('env-checks').innerHTML = (data.checks || []).map((c) => `
       <div class="env-row">
-        <span class="env-ico">${ICO[c.status] || '•'}</span>
+        <span class="env-ico ${c.status === 'pass' ? 'c-ok' : c.status === 'fail' ? 'c-fail' : 'c-warn'}">${ICO[c.status] || '•'}</span>
         <span class="env-label">${esc(c.label || c.id)}
           <span class="env-detail">${esc(c.detail || '')}</span></span>
         ${c.version ? `<span class="env-ver">${esc(c.version)}</span>` : ''}
@@ -175,7 +176,7 @@ export async function render(el) {
     try {
       await api.envBuild(repair);
       if (!gotEvent) armQuiet();
-      line('info', `▶ build started (repair=${!!repair})…`);
+      line('info', `build started (repair=${!!repair})…`);
     } catch (err) {
       clearTimeout(hardTimer);
       clearTimeout(quietTimer);
@@ -183,20 +184,26 @@ export async function render(el) {
       envOff = [];
       store.envBuilding = false;
       btn.classList.remove('loading');
-      line('err', `⛔ ${err.message}`);
+      line('err', `[lỗi] ${err.message}`);
       toast(err.message, 'error');
     }
   });
 
   /* ================= THEME ================= */
   const themeBtn = $('theme-toggle');
-  themeBtn.checked = document.documentElement.classList.contains('light');
+  themeBtn.checked = isDark();
   themeBtn.addEventListener('change', () => {
-    document.documentElement.classList.toggle('light', themeBtn.checked);
-    document.querySelector('meta[name="theme-color"]')
-      ?.setAttribute('content', themeBtn.checked ? '#eef1f8' : '#0b0f17');
-    try { localStorage.setItem('upio-theme', themeBtn.checked ? 'light' : 'dark'); } catch { /* ignore */ }
-    toast(themeBtn.checked ? 'Light theme' : 'Dark theme', 'info');
+    applyTheme(themeBtn.checked);
+    toast(themeBtn.checked ? 'Dark theme' : 'Light theme', 'info');
+  });
+
+  /* ================= SHOW/HIDE API KEY ================= */
+  const eyeBtn = $('ak-eye');
+  const keyInput = el.querySelector('#provider-form [name="apiKey"]');
+  eyeBtn.addEventListener('click', () => {
+    const show = keyInput.type === 'password';
+    keyInput.type = show ? 'text' : 'password';
+    eyeBtn.innerHTML = `${icon(show ? 'blade/eyeoff' : 'blade/eye', 'ic-xs')} ${show ? 'hide' : 'show'}`;
   });
 
   /* ================= (2) MODELS ================= */
@@ -253,18 +260,18 @@ export async function render(el) {
   $('prov-test').addEventListener('click', async () => {
     const out = $('test-out');
     const f = $('provider-form');
-    if (!f.elements.id.value.trim()) { out.className = 'test-out err'; out.textContent = '⚠️ Cần nhập ID provider trước khi test.'; return; }
+    if (!f.elements.id.value.trim()) { out.className = 'test-out err'; out.textContent = 'Cần nhập ID provider trước khi test.'; return; }
     out.className = 'test-out';
-    out.textContent = '⏳ Đang ping provider…';
+    out.textContent = 'Đang ping provider…';
     try {
       const r = await api.testModel(f.elements.id.value.trim());
       out.className = `test-out ${r.ok ? 'ok' : 'err'}`;
       out.textContent = r.ok
-        ? `✅ OK — latency ${r.latencyMs}ms${r.detail ? ' · ' + r.detail : ''}`
-        : `⛔ Fail${r.latencyMs != null ? ` (${r.latencyMs}ms)` : ''}${r.detail ? ' · ' + r.detail : ''}`;
+        ? `OK — latency ${r.latencyMs}ms${r.detail ? ' · ' + r.detail : ''}`
+        : `Fail${r.latencyMs != null ? ` (${r.latencyMs}ms)` : ''}${r.detail ? ' · ' + r.detail : ''}`;
     } catch (err) {
       out.className = 'test-out err';
-      out.textContent = `⛔ ${err.message}`;
+      out.textContent = err.message;
     }
   });
 

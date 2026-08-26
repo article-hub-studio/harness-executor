@@ -43,6 +43,51 @@ const orchestrator = new AgentOrchestrator({ executor, modelHub });
 orchestrator.on('agent-step', (p) => hub.broadcast('agent-step', p));
 orchestrator.on('agent-final', (p) => hub.broadcast('log', { level: 'info', line: `agent ${p.id} hoàn tất` }));
 
+// ---------- auto-boot: dựng môi trường + tự chạy lệnh + tự connect ----------
+const bootState = {
+  phase: 'booting', startedAt: new Date().toISOString(), finishedAt: null,
+  steps: [], error: null,
+};
+
+async function autoBoot() {
+  const mark = (name, status, extra = {}) => {
+    bootState.steps.push({ name, status, at: new Date().toISOString(), ...extra });
+    hub.broadcast('boot', { phase: bootState.phase, step: name, status, ...extra });
+  };
+  try {
+    // 1. Tự dựng môi trường (tạo dirs, ghi .env, dọn tmp…)
+    hub.broadcast('boot', { phase: 'booting', line: '⚙️ Đang tự động setup môi trường Linux…' });
+    const t0 = Date.now();
+    const r = await envBuilder.build({ repair: true }, (_ev, p) => {
+      hub.broadcast('log', { level: p.level ?? 'info', line: `[boot] ${p.line}`, boot: true });
+    });
+    mark('environment', 'ok', { ms: Date.now() - t0, detail: `${r.applied.length} thay đổi` });
+
+    // 2. Tự connect toàn bộ MCP builtin (stdio/http chờ cấu hình thủ công)
+    const builtins = executor.mcps({}).filter((m) => m.transport === 'builtin');
+    hub.broadcast('boot', { phase: 'booting', line: `🔌 Đang kết nối ${builtins.length} MCP servers…` });
+    const t1 = Date.now();
+    let okCount = 0;
+    for (let i = 0; i < builtins.length; i++) {
+      try { await executor.connect(builtins[i].id); okCount++; } catch { /* bỏ qua lỗi lẻ */ }
+      if ((i + 1) % 20 === 0 || i === builtins.length - 1) {
+        hub.broadcast('boot', { phase: 'booting', line: `🔌 ${i + 1}/${builtins.length} MCP đã kết nối` });
+      }
+    }
+    mark('connect-mcp', 'ok', { ms: Date.now() - t1, detail: `${okCount}/${builtins.length} servers` });
+
+    // 3. Sẵn sàng
+    bootState.phase = 'ready';
+    bootState.finishedAt = new Date().toISOString();
+    mark('ready', 'ok', { detail: `${executor.connectedCount()} MCP sẵn sàng · model ox-local-mock` });
+    hub.broadcast('log', { level: 'info', line: `[boot] Hệ thống sẵn sàng — ${executor.connectedCount()} MCP đã kết nối` });
+  } catch (e) {
+    bootState.phase = 'error';
+    bootState.error = String(e?.message ?? e);
+    mark(bootState.error, 'error');
+  }
+}
+
 // ---------- router ----------
 const router = createRouter();
 const route = (m, p, h) => router.add(m, p, h);
@@ -69,6 +114,8 @@ route('GET', '/api/status', (ctx) => {
     env: { node: process.version, platform: process.platform },
   });
 });
+
+route('GET', '/api/boot', (ctx) => ok(ctx.res, bootState));
 
 // ---- plugins ----
 route('GET', '/api/plugins', async (ctx) => {
@@ -271,6 +318,7 @@ server.listen(PORT, () => {
   console.log(`  ➜ Local:   http://localhost:${PORT}`);
   console.log(`  ➜ Network: http://0.0.0.0:${PORT}  (dùng IP LAN để mở trên điện thoại)`);
   console.log(`  ➜ API:     /api/status · /api/events (SSE) · /v1/chat/completions\n`);
+  void autoBoot(); // tự setup môi trường + connect MCP ngay khi mở
 });
 
 for (const sig of ['SIGINT', 'SIGTERM']) {

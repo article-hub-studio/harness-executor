@@ -41,6 +41,7 @@ const put = (p, body = {}) => fetchJSON(p, { method: 'PUT', body: JSON.stringify
 /* ---------- REST surface ---------- */
 export const api = {
   status: () => get('/api/status'),
+  boot: () => get('/api/boot'),
   plugins: () => get('/api/plugins'),
   togglePlugin: (id, enabled) => post(`/api/plugins/${encodeURIComponent(id)}/toggle`, { enabled }),
   mcps: () => get('/api/mcps'),
@@ -125,7 +126,7 @@ export async function chatCompletion({ model, messages, onDelta, signal }) {
 }
 
 /* ---------- SSE /api/events (tự reconnect 3s) ---------- */
-const EVT_TYPES = ['log', 'skill-run', 'env', 'agent-step', 'mcp', 'plugin'];
+const EVT_TYPES = ['log', 'skill-run', 'env', 'agent-step', 'mcp', 'plugin', 'boot'];
 
 /**
  * Kết nối EventSource tới /api/events.

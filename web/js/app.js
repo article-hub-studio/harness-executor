@@ -1,8 +1,11 @@
 /* ============================================================
-   upio web — app.js: shell ứng dụng.
-   Router hash · SSE bus · store chung · toast · bottom sheet · helpers.
+   upio web — app.js: shell ứng dụng (design "TRẮNG ĐEN TỐI GIẢN").
+   Router hash · SSE bus · store chung · toast · bottom sheet ·
+   helper icon/status · boot overlay gate.
    ============================================================ */
 import { api, connectEvents } from './api.js';
+import { icon, ICONS } from './icons.js';
+import { gateBoot } from './boot.js';
 import * as homeView from './views/home.js';
 import * as hubView from './views/hub.js';
 import * as agentsView from './views/agents.js';
@@ -12,6 +15,7 @@ import * as settingsView from './views/settings.js';
 // Re-export để mọi view chỉ cần import một đường từ '../app.js'
 export { api, connectEvents };
 export { chatCompletion } from './api.js';
+export { icon, ICONS };
 
 /* ---------------- Store trạng thái chung ---------------- */
 export const store = {
@@ -111,15 +115,68 @@ export async function copyText(text) {
   }
 }
 
+/* ---------------- Icons & trạng thái (hình dạng thay màu) ---------------- */
+
+/** Hydrate mọi phần tử [data-icon] trong root bằng SVG từ ICONS. */
+export function hydrateIcons(root = document) {
+  for (const node of root.querySelectorAll('[data-icon]')) {
+    const name = node.dataset.icon;
+    if (!ICONS[name]) continue;
+    node.innerHTML = icon(name, node.dataset.cls ?? 'ic');
+  }
+}
+
+/** Ký hiệu trạng thái dạng hình: connected=check · off=vòng rỗng · warn=tam giác · fail=x-circle · running=spinner. */
+export function stMark(kind = 'idle') {
+  switch (kind) {
+    case 'connected':
+    case 'ok':
+    case 'pass':
+      return `<span class="stm">${icon('blade/check', 'ic-sm')}</span>`;
+    case 'warn':
+      return `<span class="stm">${icon('blade/warn', 'ic-sm')}</span>`;
+    case 'fail':
+    case 'error':
+      return `<span class="stm">${icon('blade/error', 'ic-sm')}</span>`;
+    case 'running':
+      return '<span class="mini-spin" aria-hidden="true"></span>';
+    default:
+      return '<span class="ring" aria-hidden="true"></span>';
+  }
+}
+
+/** Nhãn tiếng Việt cho trạng thái MCP/server. */
+export function stateLabel(st) {
+  switch (st) {
+    case 'connected': return 'Đã kết nối';
+    case 'disconnected': return 'Chưa kết nối';
+    case 'error': return 'Lỗi';
+    default: return String(st || 'Chưa kết nối');
+  }
+}
+
+/* ---------------- Theme (light mặc định, dark qua html.dark) ---------------- */
+export function isDark() {
+  return document.documentElement.classList.contains('dark');
+}
+
+/** Áp theme + đồng bộ meta theme-color + lưu localStorage. */
+export function applyTheme(dark) {
+  document.documentElement.classList.toggle('dark', !!dark);
+  document.querySelectorAll('meta[name="theme-color"]')
+    .forEach((m) => m.setAttribute('content', dark ? '#0a0a0a' : '#ffffff'));
+  try { localStorage.setItem('upio-theme', dark ? 'dark' : 'light'); } catch { /* ignore */ }
+}
+
 /* ---------------- Toast ---------------- */
-const TOAST_ICO = { ok: '✅', error: '⛔', warn: '⚠️', info: 'ℹ️' };
+const TOAST_ICO = { ok: 'blade/check', error: 'blade/error', warn: 'blade/warn', info: 'solar/zap' };
 
 export function toast(msg, type = 'info') {
   const root = document.getElementById('toast-root');
   if (!root) return;
   const el = document.createElement('div');
   el.className = `toast ${type}`;
-  el.innerHTML = `<span class="t-ico">${TOAST_ICO[type] || TOAST_ICO.info}</span><span>${esc(msg)}</span>`;
+  el.innerHTML = `<span class="t-ico">${icon(TOAST_ICO[type] || TOAST_ICO.info, 'ic-sm')}</span><span>${esc(msg)}</span>`;
   root.appendChild(el);
   requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('in')));
   setTimeout(() => {
@@ -140,7 +197,9 @@ export function openSheet(html) {
   const panel = document.getElementById('sheet-panel');
   if (!rootEl || !panel) return null;
   runSheetCloseFns();
-  panel.innerHTML = `<button type="button" class="sheet-x" aria-label="Đóng">✕</button><div class="sheet-body">${html}</div>`;
+  panel.innerHTML =
+    `<button type="button" class="sheet-x" aria-label="Đóng">${icon('blade/close', 'ic-sm')}</button>` +
+    `<div class="sheet-body">${html}</div>`;
   panel.querySelector('.sheet-x').addEventListener('click', closeSheet);
   panel.scrollTop = 0;
   rootEl.classList.add('open');
@@ -193,7 +252,7 @@ async function navigate() {
     viewCleanup = (await ROUTES[name].render(el)) || null;
   } catch (err) {
     el.innerHTML = `<div class="container"><div class="card pad empty">
-      <div class="empty-ico">💥</div><b>Không render được view "${esc(name)}"</b>
+      <div class="empty-ico">${icon('blade/error', 'ic-lg')}</div><b>Không render được view "${esc(name)}"</b>
       <p class="dim">${esc(err && err.message)}</p></div></div>`;
   }
   window.scrollTo({ top: 0 });
@@ -245,12 +304,15 @@ function registerSW() {
 
 /* ---------------- Boot ---------------- */
 async function init() {
-  // Theme lưu localStorage (dark mặc định)
+  // Theme: light mặc định; head script đã thêm html.dark sớm nếu cần — sync meta ở đây
   try {
-    if (localStorage.getItem('upio-theme') === 'light') document.documentElement.classList.add('light');
-  } catch { /* storage chặn — dùng dark */ }
+    applyTheme(localStorage.getItem('upio-theme') === 'dark');
+  } catch {
+    applyTheme(false);
+  }
 
-  // Tab bar + phím Esc cho sheet
+  // Shell: icon hydration + tab bar + phím Esc cho sheet
+  hydrateIcons(document);
   document.querySelectorAll('.tab-btn').forEach((btn) => {
     btn.addEventListener('click', () => { location.hash = `#/${btn.dataset.route}`; });
   });
@@ -258,14 +320,18 @@ async function init() {
   document.getElementById('sheet-backdrop').addEventListener('click', closeSheet);
 
   window.addEventListener('hashchange', navigate);
-  await navigate();
 
-  // SSE toàn cục: đẩy mọi event vào bus
+  // SSE toàn cục: bật TRƯỚC boot gate để không lỡ event 'boot'/'log'
   connectEvents((evt) => {
     if (!evt || !evt.type) return;
     emit(evt.type, evt);
     if (evt.type === 'mcp' || evt.type === 'plugin') refreshStatusSoon();
   });
+
+  // Boot gate: backend tự setup khi vừa mở — overlay chỉ hiện khi phase 'booting'
+  try { await gateBoot({ api, listen }); } catch { /* không bao giờ chặn app */ }
+
+  await navigate();
 
   window.addEventListener('online', refreshStatus);
   window.addEventListener('offline', () => { store.apiOk = false; setBanner(true); });

@@ -9,6 +9,7 @@
     "dev": "node server/index.js",
     "generate": "node scripts/generate-registries.js",
     "icons": "node scripts/gen-icons.js",
+    "build-icons": "node scripts/build-icons.js",
     "smoke": "node scripts/smoke-test.js"
   },
   "keywords": ["mcp", "executor", "harness", "mobile", "pwa", "agents", "model-hub"],

@@ -1,11 +1,11 @@
 /* ============================================================
    upio web — view Hub: segmented [MCPs | Plugins | Skills],
-   search + chip category, list card, bottom-sheet chi tiết
-   (connect/invoke · toggle plugin · run skill).
+   search + chip category (icon hoá), list card, bottom-sheet
+   chi tiết (connect/invoke · toggle plugin · run skill).
    ============================================================ */
 import {
   api, listen, esc, toast, openSheet, onSheetClose,
-  store, debounce, fmtNum, copyText,
+  store, debounce, fmtNum, copyText, icon, stMark, stateLabel,
 } from '../app.js';
 
 const state = {
@@ -17,13 +17,26 @@ const state = {
   loaded: false,
 };
 
+/* Icon theo category (chỉ dùng tên có trong ICONS) */
+const CAT_ICONS = {
+  filesystem: 'solar/folder', git: 'solar/branch', 'web-fetch': 'solar/globe', browser: 'solar/globe',
+  database: 'solar/database', search: 'solar/search', 'ai-ml': 'solar/cpu', 'cloud-devops': 'solar/server',
+  communication: 'solar/mail', productivity: 'solar/calendar', media: 'solar/film', 'data-etl': 'blade/refresh',
+  blockchain: 'solar/link', finance: 'solar/chart', 'maps-geo': 'solar/pin', iot: 'solar/house',
+  security: 'solar/shield',
+  /* plugins / tags */
+  automation: 'solar/zap', devtools: 'solar/terminal', ai: 'solar/cpu', web: 'solar/globe',
+  system: 'solar/server', data: 'solar/database', networking: 'solar/link', text: 'solar/file',
+  tools: 'solar/wrench', prompt: 'solar/chat',
+};
+
 export async function render(el) {
   state.limit = 40;
 
   el.innerHTML = `
   <div class="container">
     <header class="hero">
-      <h1 class="hero-brand">🧩 Hub</h1>
+      <h1 class="hero-brand">${icon('solar/hub', 'ic-lg')} Hub</h1>
       <p class="hero-sub">Registry MCP servers · plugins · skills</p>
     </header>
     <div class="segmented" role="tablist" id="hub-seg">
@@ -31,7 +44,10 @@ export async function render(el) {
       <button type="button" class="seg-btn" data-tab="plugins" role="tab">Plugins</button>
       <button type="button" class="seg-btn" data-tab="skills" role="tab">Skills</button>
     </div>
-    <input type="search" class="input" id="hub-search" placeholder="Tìm theo tên, mô tả…" autocomplete="off">
+    <div class="search-wrap">
+      ${icon('solar/search', 'ic-sm')}
+      <input type="search" class="input" id="hub-search" placeholder="Tìm theo tên, mô tả…" autocomplete="off">
+    </div>
     <div class="chip-row" id="hub-chips" style="margin-top:10px"></div>
     <div class="hub-list" id="hub-list"></div>
     <div style="text-align:center;margin-top:6px"><button type="button" class="btn ghost small hidden" id="hub-more">Xem thêm</button></div>
@@ -54,9 +70,9 @@ export async function render(el) {
     state.loaded = state.mcps.length + state.plugins.length + state.skills.length > 0;
     if (!state.loaded) {
       $('hub-list').innerHTML = `<div class="card pad empty" style="grid-column:1/-1">
-        <div class="empty-ico">🛰️</div><b>API offline</b>
+        <div class="empty-ico">${icon('solar/server', 'ic-lg')}</div><b>API offline</b>
         <p class="dim">Không tải được registry. Kiểm tra backend rồi thử lại.</p>
-        <button type="button" class="btn primary small" id="hub-retry" style="margin-top:12px">↻ Thử lại</button></div>`;
+        <button type="button" class="btn primary small" id="hub-retry" style="margin-top:12px">${icon('blade/refresh', 'ic-sm')} Thử lại</button></div>`;
       $('hub-retry').addEventListener('click', () => { state.loaded = false; ensureData().then((ok) => ok && renderAll()); });
       return false;
     }
@@ -85,46 +101,51 @@ export async function render(el) {
       ? [...new Set(state.skills.flatMap((x) => x.tags || []))]
       : [...new Set(state[state.tab].map((x) => x.category))];
     const cats = ['All', ...src.filter(Boolean).slice(0, 12)];
-    $('hub-chips').innerHTML = cats.map((c) =>
-      `<button type="button" class="chip ${c === state.cat || (c === 'All' && !state.cat) ? 'active' : ''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('');
+    $('hub-chips').innerHTML = cats.map((c) => {
+      const icName = CAT_ICONS[c.toLowerCase()];
+      const active = c === state.cat || (c === 'All' && !state.cat);
+      return `<button type="button" class="chip ${active ? 'active' : ''}" data-cat="${esc(c)}">` +
+        `${icName ? icon(icName, 'ic-xs') : ''}${esc(c)}</button>`;
+    }).join('');
   }
 
   /* ---------------- List rendering ---------------- */
   function cardHTML(it) {
+    const chev = `<span class="rc-chevron">${icon('blade/chevr', 'ic-sm')}</span>`;
     if (state.tab === 'mcps') {
-      const st = it.state === 'connected';
+      const connected = it.state === 'connected';
       return `
         <button type="button" class="card row-card" data-id="${esc(it.id)}">
-          <span class="rc-icon">${esc(it.icon || '🔌')}</span>
+          <span class="rc-icon">${it.icon ? esc(it.icon) : icon('solar/server', '')}</span>
           <span class="rc-main">
-            <span class="rc-top"><b>${esc(it.name)}</b><span class="badge mini info">⭐ ${fmtNum(it.stars)}</span></span>
+            <span class="rc-top"><b>${esc(it.name)}</b><span class="badge mini">${esc(fmtNum(it.stars))} sao</span></span>
             <span class="rc-desc">${esc(it.description)}</span>
-            <span class="rc-meta"><span class="dot ${st ? 'connected' : 'disconnected'}"></span>${esc(it.category)} · v${esc(it.version)} · ${(it.tools || []).length} tools</span>
+            <span class="rc-meta">${stMark(connected ? 'connected' : 'disconnected')}${esc(it.category)} · v${esc(it.version)} · ${(it.tools || []).length} tools</span>
           </span>
-          <span class="rc-chevron">›</span>
+          ${chev}
         </button>`;
     }
     if (state.tab === 'plugins') {
       return `
         <button type="button" class="card row-card" data-id="${esc(it.id)}">
-          <span class="rc-icon">${esc(it.icon || '🧩')}</span>
+          <span class="rc-icon">${it.icon ? esc(it.icon) : icon('solar/puzzle', '')}</span>
           <span class="rc-main">
-            <span class="rc-top"><b>${esc(it.name)}</b><span class="badge mini ${it.enabled ? 'connected' : 'disconnected'}">${it.enabled ? 'ON' : 'OFF'}</span></span>
+            <span class="rc-top"><b>${esc(it.name)}</b><span class="badge mini">${it.enabled ? 'ON' : 'OFF'}</span></span>
             <span class="rc-desc">${esc(it.description)}</span>
-            <span class="rc-meta">v${esc(it.version)} · 🔥 ${esc(String(it.popularity ?? '—'))}</span>
+            <span class="rc-meta">${icon('blade/bolt', 'ic-xs')} pop ${esc(String(it.popularity ?? '—'))}</span>
           </span>
-          <span class="rc-chevron">›</span>
+          ${chev}
         </button>`;
     }
     return `
       <button type="button" class="card row-card" data-id="${esc(it.id)}">
-        <span class="rc-icon">${esc(it.icon || '✨')}</span>
+        <span class="rc-icon">${it.icon ? esc(it.icon) : icon('blade/sparkles', '')}</span>
         <span class="rc-main">
-          <span class="rc-top"><b>${esc(it.name)}</b><span class="badge mini grad">${(it.steps || []).length} bước</span></span>
+          <span class="rc-top"><b>${esc(it.name)}</b><span class="badge mini inv">${(it.steps || []).length} bước</span></span>
           <span class="rc-desc">${esc(it.description)}</span>
           <span class="rc-meta">${esc((it.tags || []).join(' · '))}</span>
         </span>
-        <span class="rc-chevron">›</span>
+        ${chev}
       </button>`;
   }
 
@@ -133,7 +154,7 @@ export async function render(el) {
     const slice = arr.slice(0, state.limit);
     $('hub-list').innerHTML = slice.length
       ? slice.map(cardHTML).join('')
-      : `<div class="card pad empty" style="grid-column:1/-1"><div class="empty-ico">🔍</div>
+      : `<div class="card pad empty" style="grid-column:1/-1"><div class="empty-ico">${icon('blade/search', 'ic-lg')}</div>
          <b>Không tìm thấy mục nào</b><p class="dim">Thử đổi từ khóa hoặc bỏ chip lọc.</p></div>`;
     const more = $('hub-more');
     more.classList.toggle('hidden', arr.length <= state.limit);
@@ -186,52 +207,58 @@ export async function render(el) {
   });
 
   /* ================= Sheet MCP ================= */
-  function openMcpSheet(it) {
+  function drawStateBadge(badge, item) {
+    const st = item.state === 'connected' ? 'connected' : item.state === 'error' ? 'error' : 'disconnected';
+    badge.className = `badge ${st}`;
+    badge.innerHTML = `${stMark(st === 'connected' ? 'connected' : st === 'error' ? 'fail' : 'disconnected')}${esc(stateLabel(item.state))}`;
+  }
+
+  function openMcpSheet(item) {
     const panel = openSheet(`
       <div class="sheet-head">
-        <span class="rc-icon">${esc(it.icon || '🔌')}</span>
+        <span class="rc-icon">${item.icon ? esc(item.icon) : icon('solar/server', '')}</span>
         <div style="min-width:0">
-          <div class="sheet-title">${esc(it.name)}</div>
-          <div class="sheet-sub">by ${esc(it.author || 'upio')} · v${esc(it.version)} · ${esc(it.transport || 'builtin')}</div>
+          <div class="sheet-title">${esc(item.name)}</div>
+          <div class="sheet-sub">by ${esc(item.author || 'upio')} · v${esc(item.version)} · ${esc(item.transport || 'builtin')}</div>
         </div>
       </div>
-      <div class="tag-row">${(it.tags || []).map((t) => `<span class="badge mini disconnected">#${esc(t)}</span>`).join('')}
-        <span class="badge mini info">⭐ ${fmtNum(it.stars)}</span></div>
-      <p class="sheet-desc">${esc(it.description)}</p>
+      <div class="tag-row">${(item.tags || []).map((t) => `<span class="badge mini">#${esc(t)}</span>`).join('')}
+        <span class="badge mini">${esc(fmtNum(item.stars))} sao</span></div>
+      <p class="sheet-desc">${esc(item.description)}</p>
       <div class="sheet-sec">
         <div class="form-grid cols-2">
           <div class="field"><label>Trạng thái</label>
-            <div><span class="badge ${it.state === 'connected' ? 'connected' : 'disconnected'}" id="mcp-state-badge">
-              <span class="dot ${it.state === 'connected' ? 'connected' : 'disconnected'}"></span>${esc(it.state || 'disconnected')}</span></div>
+            <div><span class="badge disconnected" id="mcp-state-badge"></span></div>
           </div>
           <div class="field"><label>&nbsp;</label>
-            <button type="button" class="btn block ${it.state === 'connected' ? 'ghost' : 'primary'}" id="mcp-toggle-btn"></button>
+            <button type="button" class="btn block primary" id="mcp-toggle-btn"></button>
           </div>
         </div>
       </div>
       <div class="sheet-sec" id="mcp-tools-area"></div>
       <div class="sheet-sec hidden" id="mcp-invoke-area"></div>`);
 
-    const tools = () => it.tools || [];
+    const tools = () => item.tools || [];
 
     function drawToggleBtn(btn) {
-      const connected = it.state === 'connected';
-      btn.textContent = connected ? '⛔ Disconnect' : '🔌 Connect';
+      const connected = item.state === 'connected';
+      btn.innerHTML = connected
+        ? `${icon('blade/disconnect', 'ic-sm')} Disconnect`
+        : `${icon('blade/connect', 'ic-sm')} Connect`;
       btn.className = `btn block ${connected ? 'ghost' : 'primary'}`;
     }
 
     async function toggleConnect(btn, badge) {
-      const connected = it.state === 'connected';
+      const connected = item.state === 'connected';
       btn.classList.add('loading'); // spinner ngay trong nút
       try {
-        const resp = connected ? await api.disconnect(it.id) : await api.connect(it.id);
-        it.state = resp.state || (connected ? 'disconnected' : 'connected');
-        if (resp.tools) it.tools = resp.tools;
-        badge.className = `badge ${it.state}`;
-        badge.innerHTML = `<span class="dot ${it.state === 'connected' ? 'connected' : 'disconnected'}"></span>${esc(it.state)}`;
+        const resp = connected ? await api.disconnect(item.id) : await api.connect(item.id);
+        item.state = resp.state || (connected ? 'disconnected' : 'connected');
+        if (resp.tools) item.tools = resp.tools;
+        drawStateBadge(badge, item);
         drawToggleBtn(btn);
         drawToolsArea();
-        toast(`${it.name}: ${it.state}`, it.state === 'connected' ? 'ok' : 'info');
+        toast(`${item.name}: ${stateLabel(item.state)}`, item.state === 'connected' ? 'ok' : 'info');
       } catch (err) {
         toast(err.message, 'error'); // vd. stdio/http connect fail → 502
       } finally {
@@ -298,9 +325,10 @@ export async function render(el) {
         ? `${esc(r.meta.server)}·${esc(r.meta.tool)} · ${esc(String(r.meta.durationMs))}ms · ${r.meta.mocked ? 'mocked' : 'live'}`
         : '';
       box.innerHTML = bad
-        ? `<div class="result-err"><div class="rz-head">⛔ Lỗi</div><pre>${esc(r.error || 'Unknown error')}</pre></div>`
-        : `<div class="result-ok"><div class="rz-head"><span>✅ Kết quả</span><button type="button" class="btn ghost small obs-copy" id="copy-result">⧉ copy</button></div>
-           <pre>${esc(JSON.stringify(r.result ?? r, null, 2))}</pre>${meta ? `<div class="rz-meta">${meta}</div>` : ''}</div>`;
+        ? `<div class="result-err"><div class="rz-head"><span class="lbl">${icon('blade/error', 'ic-sm')} Lỗi</span></div><pre>${esc(r.error || 'Unknown error')}</pre></div>`
+        : `<div class="result-ok"><div class="rz-head"><span class="lbl">${icon('blade/check', 'ic-sm')} Kết quả</span>` +
+          `<button type="button" class="btn ghost small obs-copy" id="copy-result">${icon('blade/copy', 'ic-sm')} copy</button></div>` +
+          `<pre>${esc(JSON.stringify(r.result ?? r, null, 2))}</pre>${meta ? `<div class="rz-meta">${meta}</div>` : ''}</div>`;
       const cp = box.querySelector('#copy-result');
       if (cp) cp.addEventListener('click', async () => {
         if (await copyText(JSON.stringify(r.result ?? r, null, 2))) toast('Đã copy kết quả', 'ok');
@@ -310,8 +338,8 @@ export async function render(el) {
     function drawToolsArea() {
       const area = panel.querySelector('#mcp-tools-area');
       const inv = panel.querySelector('#mcp-invoke-area');
-      if (it.state !== 'connected') {
-        area.innerHTML = `<h4>Tools</h4><div class="empty" style="padding:14px"><div class="empty-ico">🔒</div>
+      if (item.state !== 'connected') {
+        area.innerHTML = `<h4>Tools</h4><div class="empty" style="padding:14px"><div class="empty-ico">${icon('solar/lock', 'ic-lg')}</div>
           <p>Kết nối server để xem và gọi <b>${tools().length}</b> tools.</p></div>`;
         inv.classList.add('hidden');
         inv.innerHTML = '';
@@ -323,8 +351,8 @@ export async function render(el) {
         <div class="acc" data-ti="${i}">
           <button type="button" class="acc-head">
             <span class="tool-name">${esc(t.name)}</span>
-            ${isDangerous(t.name) ? '<span class="badge mini warn">⚠ risky</span>' : ''}
-            <span class="acc-caret">›</span>
+            ${isDangerous(t.name) ? `<span class="badge mini warn">${icon('blade/warn', 'ic-xs')} risky</span>` : ''}
+            <span class="acc-caret">${icon('blade/chevr', 'ic-sm')}</span>
           </button>
           <div class="acc-body">
             <div>${esc(t.description)}</div>
@@ -338,7 +366,7 @@ export async function render(el) {
 
       // Form invoke
       inv.classList.remove('hidden');
-      inv.innerHTML = `<h4>▶ Invoke tool</h4>
+      inv.innerHTML = `<h4>Invoke tool</h4>
         <div class="field"><label>Tool</label>
           <select class="input" id="inv-tool">${tools().map((t) => `<option value="${esc(t.name)}">${esc(t.name)}</option>`).join('')}</select>
         </div>
@@ -346,7 +374,7 @@ export async function render(el) {
         <label class="check-row hidden" id="inv-approved-row">
           <input type="checkbox" id="inv-approved"><span>Tôi phê duyệt hành động này (approved — tool ghi/xóa)</span>
         </label>
-        <button type="button" class="btn primary block" id="inv-run" style="margin-top:8px">▶ Run</button>
+        <button type="button" class="btn primary block" id="inv-run" style="margin-top:8px">${icon('blade/run', 'ic-sm')} Run</button>
         <div class="result-zone hidden" id="inv-result"></div>`;
 
       const sel = inv.querySelector('#inv-tool');
@@ -367,7 +395,7 @@ export async function render(el) {
         const approvedEl = inv.querySelector('#inv-approved');
         btn.classList.add('loading');
         try {
-          const r = await api.invoke(it.id, tool.name, args, approvedEl && approvedEl.checked);
+          const r = await api.invoke(item.id, tool.name, args, approvedEl && approvedEl.checked);
           drawResult(inv.querySelector('#inv-result'), r);
         } catch (err) {
           drawResult(inv.querySelector('#inv-result'), { ok: false, error: err.message });
@@ -379,53 +407,54 @@ export async function render(el) {
 
     const tglBtn = panel.querySelector('#mcp-toggle-btn');
     drawToggleBtn(tglBtn);
+    drawStateBadge(panel.querySelector('#mcp-state-badge'), item);
     tglBtn.addEventListener('click', () => toggleConnect(tglBtn, panel.querySelector('#mcp-state-badge')));
     drawToolsArea();
   }
 
   /* ================= Sheet Plugin ================= */
-  function openPluginSheet(it) {
+  function openPluginSheet(item) {
     const panel = openSheet(`
       <div class="sheet-head">
-        <span class="rc-icon">${esc(it.icon || '🧩')}</span>
-        <div><div class="sheet-title">${esc(it.name)}</div>
-        <div class="sheet-sub">v${esc(it.version)} · 🔥 popularity ${esc(String(it.popularity ?? '—'))}</div></div>
+        <span class="rc-icon">${item.icon ? esc(item.icon) : icon('solar/puzzle', '')}</span>
+        <div><div class="sheet-title">${esc(item.name)}</div>
+        <div class="sheet-sub">v${esc(item.version)} · popularity ${esc(String(item.popularity ?? '—'))}</div></div>
       </div>
-      <p class="sheet-desc">${esc(it.description)}</p>
+      <p class="sheet-desc">${esc(item.description)}</p>
       <div class="sheet-sec"><h4>Permissions</h4>
-        <div class="tag-row">${[...new Set(it.permissions || [])].map((p) => `<span class="badge mini warn">🔑 ${esc(p)}</span>`).join('') || '<span class="dim">—</span>'}</div>
+        <div class="tag-row">${[...new Set(item.permissions || [])].map((p) => `<span class="badge mini">${icon('blade/key', 'ic-xs')} ${esc(p)}</span>`).join('') || '<span class="dim">—</span>'}</div>
       </div>
       <div class="sheet-sec"><h4>Hooks</h4>
-        <div class="tag-row">${(it.hooks || []).map((h) => `<code>${esc(h)}</code>`).join(' ') || '<span class="dim">—</span>'}</div>
+        <div class="tag-row">${(item.hooks || []).map((h) => `<code>${esc(h)}</code>`).join(' ') || '<span class="dim">—</span>'}</div>
       </div>
       <div class="sheet-sec"><div class="check-row" style="justify-content:space-between">
         <b>Enabled</b>
-        <span class="switch"><input type="checkbox" id="plg-toggle" ${it.enabled ? 'checked' : ''}><span class="track"></span></span>
+        <span class="switch"><input type="checkbox" id="plg-toggle" ${item.enabled ? 'checked' : ''}><span class="track"></span></span>
       </div></div>`);
 
     panel.querySelector('#plg-toggle').addEventListener('change', async (e) => {
       const val = e.target.checked;
-      it.enabled = val; // optimistic UI
-      updateCardInPlace(it);
+      item.enabled = val; // optimistic UI
+      updateCardInPlace(item);
       try {
-        const updated = await api.togglePlugin(it.id, val);
-        if (updated && typeof updated.enabled === 'boolean') it.enabled = updated.enabled;
-        toast(`${it.name}: ${it.enabled ? 'enabled' : 'disabled'}`, 'ok');
+        const updated = await api.togglePlugin(item.id, val);
+        if (updated && typeof updated.enabled === 'boolean') item.enabled = updated.enabled;
+        toast(`${item.name}: ${item.enabled ? 'enabled' : 'disabled'}`, 'ok');
       } catch (err) {
-        it.enabled = !val;   // revert khi lỗi
-        e.target.checked = it.enabled;
+        item.enabled = !val;   // revert khi lỗi
+        e.target.checked = item.enabled;
         toast(err.message, 'error');
       }
-      updateCardInPlace(it);
+      updateCardInPlace(item);
     });
   }
 
   /** Cập nhật 1 card trong list mà không re-render toàn bộ (giữ scroll). */
-  function updateCardInPlace(it) {
-    const row = document.querySelector(`#hub-list [data-id="${CSS.escape(it.id)}"]`);
+  function updateCardInPlace(item) {
+    const row = document.querySelector(`#hub-list [data-id="${CSS.escape(item.id)}"]`);
     if (row && state.tab === 'plugins') {
       const tmp = document.createElement('div');
-      tmp.innerHTML = cardHTML(it);
+      tmp.innerHTML = cardHTML(item);
       row.replaceWith(tmp.firstElementChild);
     }
   }
@@ -440,14 +469,14 @@ export async function render(el) {
 /* ================= Sheet Skill (+ Run) — dùng chung cho Home ================= */
 /**
  * Sheet chạy skill: form inputs → POST runSkill → lắng nghe SSE 'skill-run'
- * khớp runId, append/update step rows (⏳→✅/⚠️), tổng kết khi đủ bước.
+ * khớp runId, append/update step rows (spinner → check/warn), tổng kết khi đủ bước.
  */
 export function openSkillSheet(skill) {
   const inputs = skill.inputs || [];
   const total = (skill.steps || []).length;
   const panel = openSheet(`
     <div class="sheet-head">
-      <span class="rc-icon">${esc(skill.icon || '✨')}</span>
+      <span class="rc-icon">${skill.icon ? esc(skill.icon) : icon('blade/sparkles', '')}</span>
       <div><div class="sheet-title">${esc(skill.name)}</div>
       <div class="sheet-sub">${total} bước · ${inputs.length} input</div></div>
     </div>
@@ -457,7 +486,7 @@ export function openSkillSheet(skill) {
         <div class="field"><label>${esc(i.label || i.key)}</label>
           <input class="input" name="${esc(i.key)}" placeholder="${esc(i.placeholder || '')}" autocomplete="off">
         </div>`).join('')}
-      <button type="submit" class="btn primary block" id="skill-run-btn">▶ Run skill</button>
+      <button type="submit" class="btn primary block" id="skill-run-btn">${icon('blade/run', 'ic-sm')} Run skill</button>
     </form>
     <div class="progress-zone hidden" id="skill-progress"></div>`);
 
@@ -466,7 +495,9 @@ export function openSkillSheet(skill) {
   const rows = new Map(); // step i → row element
 
   function stepRow(evt) {
-    const icon = evt.status === 'ok' ? '✅' : evt.status === 'error' ? '⚠️' : '⏳';
+    const icoHTML = evt.status === 'ok'
+      ? icon('blade/check', 'ic-sm')
+      : evt.status === 'error' ? icon('blade/warn', 'ic-sm') : '<span class="mini-spin" aria-hidden="true"></span>';
     let row = rows.get(evt.i);
     if (!row) {
       row = document.createElement('div');
@@ -474,7 +505,7 @@ export function openSkillSheet(skill) {
       rows.set(evt.i, row);
     }
     row.className = `step-row st-${evt.status || 'running'}`;
-    row.innerHTML = `<span class="step-ico">${icon}</span>
+    row.innerHTML = `<span class="step-ico">${icoHTML}</span>
       <div style="min-width:0"><div class="step-tit">Bước ${esc(String(evt.i))}/${esc(String(evt.total ?? total))} · ${esc(evt.type || '')}</div>
       <div class="step-detail">${esc(evt.detail || '')}</div></div>`;
     zone.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -484,9 +515,9 @@ export function openSkillSheet(skill) {
     const secs = ((Date.now() - t0) / 1000).toFixed(1);
     const sum = document.createElement('div');
     sum.className = 'step-summary';
-    sum.textContent = errCount
-      ? `⚠️ Hoàn tất với ${okCount} bước OK, ${errCount} lỗi trong ${secs}s`
-      : `✅ Hoàn thành ${okCount}/${total} bước trong ${secs}s`;
+    sum.innerHTML = errCount
+      ? `${icon('blade/warn', 'ic-sm')} Hoàn tất với ${okCount} bước OK, ${errCount} lỗi trong ${secs}s`
+      : `${icon('blade/check', 'ic-sm')} Hoàn thành ${okCount}/${total} bước trong ${secs}s`;
     zone.appendChild(sum);
   }
 
@@ -527,7 +558,7 @@ export function openSkillSheet(skill) {
       done = true;
       btn.classList.remove('loading');
       zone.insertAdjacentHTML('afterbegin',
-        `<div class="result-err"><div class="rz-head">⛔ Lỗi</div><pre>${esc(err.message)}</pre></div>`);
+        `<div class="result-err"><div class="rz-head"><span class="lbl">${icon('blade/error', 'ic-sm')} Lỗi</span></div><pre>${esc(err.message)}</pre></div>`);
     }
   });
 }

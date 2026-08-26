@@ -1,14 +1,14 @@
 {
-  "name": "upio MCP Executor",
+  "name": "upio MCP Executor — Mobile Control Plane",
   "short_name": "upio",
-  "description": "Mobile control plane cho upio MCP Executor — MCP servers, plugins, skills, agents.",
+  "description": "Điều khiển MCP servers, plugins, skills và agents từ điện thoại — giao diện trắng đen tối giản.",
   "id": "upio-mcp-executor",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "theme_color": "#0b0f17",
-  "background_color": "#0b0f17",
+  "theme_color": "#ffffff",
+  "background_color": "#ffffff",
   "lang": "vi",
   "categories": ["developer", "productivity", "utilities"],
   "icons": [
