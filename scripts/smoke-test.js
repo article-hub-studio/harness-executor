@@ -302,6 +302,50 @@ await check('Web JS không dùng global riêng của Node (process/require/__dir
   return `${files.length} file sạch`;
 });
 
+await check('Web UI toàn vẹn: icon 99 key sạch, biến CSS tồn tại, id JS gọi có trong DOM', async () => {
+  const { readFileSync, readdirSync, statSync } = await import('node:fs');
+  const { fileURLToPath } = await import('node:url');
+  const root = fileURLToPath(new URL('../web', import.meta.url));
+  const problems = [];
+
+  // 1) icons.js: không SVG rỗng / thiếu thẻ đóng
+  const iconsSrc = readFileSync(`${root}/js/icons.js`, 'utf8');
+  const { ICONS } = await import(`${root}/js/icons.js`);
+  const nIcons = Object.keys(ICONS).length;
+  for (const [k, v] of Object.entries(ICONS)) {
+    if (v.includes('undefined') || !v.endsWith('</svg>') || v.length < 90) problems.push(`icon hỏng: ${k}`);
+  }
+  assert(nIcons >= 99, `ICONS chỉ có ${nIcons} key (cần >= 99)`);
+
+  // 2) mọi var(--x) phải được khai báo trong app.css
+  const css = readFileSync(`${root}/css/app.css`, 'utf8');
+  const declared = new Set([...css.matchAll(/(--[\w-]+)\s*:/g)].map((m) => m[1]));
+  const walk = (d) => readdirSync(d).flatMap((f) => {
+    const p = `${d}/${f}`;
+    return statSync(p).isDirectory() ? walk(p) : [p];
+  });
+  for (const f of walk(root).filter((f) => /\.(js|css|html)$/.test(f))) {
+    const src = readFileSync(f, 'utf8');
+    for (const m of src.matchAll(/var\((--[\w-]+)/g)) {
+      if (!declared.has(m[1])) problems.push(`${f.replace(root, 'web')}: var(${m[1]}) chưa khai báo`);
+    }
+  }
+
+  // 3) id JS truy cập phải có trong template cùng file (tránh nút chết)
+  for (const f of walk(`${root}/js/views`)) {
+    const src = readFileSync(f, 'utf8');
+    const inHtml = new Set([...src.matchAll(/id="([\w-]+)"/g)].map((m) => m[1]));
+    const dyn = /\$\{p\}-|\$\{pre\}-/.test(src); // form dùng prefix động → bỏ qua
+    if (dyn) continue;
+    for (const m of src.matchAll(/\$\('#?([\w-]+)'\)/g)) {
+      if (!inHtml.has(m[1])) problems.push(`${f.replace(root, 'web')}: $('${m[1]}') không có id tương ứng`);
+    }
+  }
+
+  assert(problems.length === 0, `UI có lỗi tiềm ẩn:\n    ${problems.join('\n    ')}`);
+  return `${nIcons} icon · ${declared.size} CSS var · id khớp`;
+});
+
 // ---- tổng kết ----
 const passed = results.filter((r) => r.ok).length;
 console.log(`\n📊 Kết quả: ${passed}/${results.length} pass`);

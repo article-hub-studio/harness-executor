@@ -813,3 +813,79 @@ html.dark .term-console { background: #0f0f0f; }
 .term-input { flex: 1; border: 0; outline: 0; background: transparent; color: var(--text);
   font-family: ui-monospace, monospace; font-size: 13px; min-width: 0; padding: 8px 0; }
 .hint-block { font-size: 12px; line-height: 1.7; margin-top: 10px; }
+
+/* ============================================================
+   30) SETTINGS refresh — segmented ngôn ngữ, author card,
+       hàng Shizuku, nút size nhỏ. Vẫn thuần đen/trắng.
+   ============================================================ */
+.lang-seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--r-md);
+  overflow: hidden; flex: none; }
+.lang-seg button { padding: 7px 15px; font-size: 12px; font-weight: 800; letter-spacing: .06em;
+  background: transparent; color: var(--text); border: 0; cursor: pointer;
+  transition: background var(--tr), color var(--tr); font-family: var(--font); }
+.lang-seg button + button { border-left: 1px solid var(--border-strong); }
+.lang-seg button:hover { background: var(--bg-soft); }
+.lang-seg button.on { background: var(--text); color: var(--bg); }
+
+.author-card { display: flex; align-items: center; gap: 12px; margin: 10px 0 14px; padding: 10px;
+  border: 1px solid var(--border); border-radius: var(--r-md); text-decoration: none; color: inherit;
+  transition: border-color var(--tr), background var(--tr); }
+.author-card:hover { border-color: var(--border-strong); background: var(--bg-soft); }
+.author-pic { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--border);
+  background: var(--bg-soft); object-fit: cover; flex: none; }
+.author-meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.author-k { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text-dim); }
+.author-meta b { font-size: 14px; display: inline-flex; align-items: center; gap: 5px; }
+
+.shz-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.shz-row .mono { font-size: 11.5px; display: inline-flex; align-items: center; gap: 6px; }
+.shz-row .btn { margin-left: auto; }
+.btn.sm { height: 36px; padding: 0 15px; font-size: 12.5px; width: auto; }
+
+/* Card title canh icon cho đều */
+.card-title { display: flex; align-items: center; gap: 8px; }
+
+/* ============================================================
+   31) POLISH — phản hồi khi bấm, focus rõ, loading, cuộn mượt.
+       Giữ nguyên hệ đen/trắng; chỉ tinh chỉnh cảm giác dùng.
+   ============================================================ */
+/* Nút: có phản hồi nhấn thật sự trên mobile */
+.btn, .tab-btn, .chip, .lang-seg button, .perm-actions button, .md-copy {
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none;
+}
+.btn:active:not(:disabled), .chip:active, .lang-seg button:active,
+.perm-actions button:active, .md-copy:active { transform: scale(.97); }
+.btn { transition: transform 90ms ease, background var(--tr), border-color var(--tr), opacity var(--tr); }
+.btn:disabled { opacity: .5; pointer-events: none; }
+
+/* Focus bàn phím rõ ràng (a11y) nhưng không viền khi bấm chuột */
+:where(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid var(--text); outline-offset: 2px; border-radius: var(--r-sm);
+}
+
+/* Cuộn mượt + không giật khi mở sheet */
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* Vùng bấm tối thiểu 44px cho mọi control nhỏ (chuẩn mobile) */
+.tab-btn { min-height: 44px; }
+.chip, .md-copy, .linklike { min-height: 32px; }
+
+/* Card hover nhẹ trên desktop, bỏ trên máy cảm ứng */
+@media (hover: hover) and (pointer: fine) {
+  .card:hover { border-color: var(--border-strong); }
+}
+
+/* Skeleton mượt hơn */
+.skel { position: relative; overflow: hidden; background: var(--bg-soft); border-radius: var(--r-sm); }
+.skel::after {
+  content: ''; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(0,0,0,.045), transparent);
+  animation: skel-sweep 1.25s ease-in-out infinite;
+}
+html.dark .skel::after { background: linear-gradient(90deg, transparent, rgba(255,255,255,.06), transparent); }
+@keyframes skel-sweep { to { transform: translateX(100%); } }

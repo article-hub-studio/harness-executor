@@ -41,7 +41,7 @@ export async function render(el) {
   </div>`;
 
   /* ----- stat cards ----- */
-  const $ = (id) => el.querySelector('#' + id);
+  const $ = (s) => el.querySelector(String(s).startsWith('#') ? s : '#' + s);
 
   function fillStats(s) {
     if (!s) return; // offline — giữ '—'

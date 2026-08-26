@@ -69,7 +69,7 @@ export async function render(el) {
     <div style="text-align:center;margin-top:6px"><button type="button" class="btn ghost small hidden" id="hub-more">Xem thêm</button></div>
   </div>`;
 
-  const $ = (id) => el.querySelector('#' + id);
+  const $ = (s) => el.querySelector(String(s).startsWith('#') ? s : '#' + s);
 
   /* ---------------- Nạp dữ liệu registry ---------------- */
   async function ensureData() {

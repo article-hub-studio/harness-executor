@@ -15,7 +15,7 @@ export async function render(el) {
   <div class="container">
     <header class="hero">
       <h1 class="hero-brand">${icon('solar/settings', 'ic-lg')} Settings</h1>
-      <p class="hero-sub">Environment · Models · Theme · About</p>
+      <p class="hero-sub">Environment · Models · Theme · Language · Shizuku · About</p>
     </header>
 
     <div class="settings-grid">
@@ -48,9 +48,9 @@ export async function render(el) {
         <div class="card pad" style="margin-top:14px">
           <div class="check-row" style="justify-content:space-between">
             <b style="display:inline-flex;align-items:center;gap:8px">${icon('blade/globe', 'ic-sm')} <span id="lang-label">Ngôn ngữ / Language</span></b>
-            <span class="segmented" id="lang-seg" style="display:inline-flex;border:1px solid var(--border-strong);border-radius:var(--r-md);overflow:hidden">
-              <button type="button" data-lang="vi" style="padding:7px 14px;font-size:12.5px;font-weight:700;background:${getLang() === 'vi' ? 'var(--text)' : 'transparent'};color:${getLang() === 'vi' ? 'var(--bg)' : 'var(--text)'};border:0;cursor:pointer">🇻🇳 VI</button>
-              <button type="button" data-lang="en" style="padding:7px 14px;font-size:12.5px;font-weight:700;background:${getLang() === 'en' ? 'var(--text)' : 'transparent'};color:${getLang() === 'en' ? 'var(--bg)' : 'var(--text)'};border:0;cursor:pointer">🇬🇧 EN</button>
+            <span class="lang-seg" id="lang-seg">
+              <button type="button" data-lang="vi" class="${getLang() === 'vi' ? 'on' : ''}">VI</button>
+              <button type="button" data-lang="en" class="${getLang() === 'en' ? 'on' : ''}">EN</button>
             </span>
           </div>
         </div>
@@ -95,24 +95,21 @@ export async function render(el) {
             Cho phép Terminal chạy lệnh qua quyền shell cao (rish) mà không cần root.
             Cài app <b>Shizuku</b> → khởi động → chạy <code>rish</code> một lần để cấp quyền,
             rồi copy file <code>rish</code> vào <code>~/.termux/shizuku/</code>.</p>
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <span class="mono" id="shz-status" style="font-size:11.5px">${icon('blade/search', 'ic-xs')} đang dò…</span>
-            <span style="flex:1"></span>
-            <button type="button" class="ws-stop" id="shz-toggle" style="width:auto;padding:0 14px;height:36px;font-weight:700;font-size:12.5px">Bật</button>
+          <div class="shz-row">
+            <span class="mono" id="shz-status">${icon('blade/search', 'ic-xs')} đang dò…</span>
+            <button type="button" class="btn ghost sm" id="shz-toggle">Bật</button>
           </div>
         </div>
 
         <!-- (3) About -->
         <div class="card pad" style="margin-top:14px">
           <h3 class="card-title">${icon('solar/book', 'ic-sm')} About</h3>
-          <a class="author-card" href="https://github.com/article-hub-studio" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:12px;margin:10px 0 14px;padding:10px;border:1px solid var(--bd);border-radius:10px;text-decoration:none;color:inherit">
+          <a class="author-card" href="https://github.com/article-hub-studio" target="_blank" rel="noopener noreferrer">
             <img class="author-pic" src="https://github.com/article-hub-studio.png?size=96" alt="avatar tác giả"
-                 width="44" height="44" loading="lazy" referrerpolicy="no-referrer"
-                 style="width:44px;height:44px;border-radius:50%;border:1px solid var(--bd);background:var(--sf);object-fit:cover;flex:none"
-                 onerror="this.style.display='none'">
-            <span style="display:flex;flex-direction:column;gap:2px;min-width:0">
-              <span style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mu)">Author</span>
-              <b style="font-size:14px">article-hub-studio ${icon('blade/external', 'ic-xs')}</b>
+                 width="44" height="44" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">
+            <span class="author-meta">
+              <span class="author-k">Author</span>
+              <b>article-hub-studio ${icon('blade/external', 'ic-xs')}</b>
             </span>
           </a>
           <div class="about-list stagger">
@@ -127,7 +124,7 @@ export async function render(el) {
     </div>
   </div>`;
 
-  const $ = (id) => el.querySelector('#' + id);
+  const $ = (s) => el.querySelector(String(s).startsWith('#') ? s : '#' + s);
   let envOff = []; // unsubscribe các listener SSE của build đang chạy
 
   /* ================= (1) ENVIRONMENT ================= */
@@ -239,11 +236,12 @@ export async function render(el) {
   });
 
   /* ---- Ngôn ngữ VI/EN: đổi → render lại view hiện tại ---- */
-  $('#lang-seg')?.addEventListener('click', (e) => {
+  $('lang-seg')?.addEventListener('click', (e) => {
     const b = e.target.closest('button[data-lang]');
-    if (!b) return;
+    if (!b || b.classList.contains('on')) return;
     setLang(b.dataset.lang);
-    location.reload();
+    toast(b.dataset.lang === 'en' ? 'Switching to English…' : 'Đang chuyển sang tiếng Việt…', 'info');
+    setTimeout(() => location.reload(), 260);
   });
 
   /* ================= SHOW/HIDE API KEY ================= */

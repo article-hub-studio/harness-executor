@@ -31,7 +31,7 @@ export async function render(el) {
       <button type="submit" class="send-btn" id="chat-send" disabled title="Gửi" aria-label="Gửi">${icon('blade/send', '')}</button>
     </form>`;
 
-  const $ = (id) => el.querySelector('#' + id);
+  const $ = (s) => el.querySelector(String(s).startsWith('#') ? s : '#' + s);
   const scrollBox = $('chat-scroll');
   const inner = $('chat-inner');
   const input = $('chat-input');

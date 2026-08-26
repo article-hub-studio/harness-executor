@@ -161,7 +161,7 @@ export async function render(el) {
     </section>
   </div>`;
 
-  const $ = (id) => el.querySelector('#' + id);
+  const $ = (s) => el.querySelector(String(s).startsWith('#') ? s : '#' + s);
   let items = [];
   let pollTimer = null;       // polling list (segment Agents)
   let liveTimer = null;       // polling detail 1.5s (Workspace)
