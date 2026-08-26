@@ -8,7 +8,7 @@
    (4) About: version, stack, credit upio labs.
    ============================================================ */
 import { api, listen, esc, toast, store, fmtClock, refreshModels, icon, applyTheme, isDark } from '../app.js';
-import { getLang, setLang } from '../../i18n.js';
+import { getLang, setLang } from '../i18n.js';
 
 export async function render(el) {
   el.innerHTML = `

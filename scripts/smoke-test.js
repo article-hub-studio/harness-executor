@@ -255,6 +255,32 @@ await check('Shizuku status endpoint', async () => {
   return st.available ? `rish: ${st.path}` : 'rish chưa có (bình thường trên Linux)';
 });
 
+await check('Web module graph: mọi import ES module trả 200 (chống chế độ tĩnh)', async () => {
+  const seen = new Set();
+  const queue = ['/js/app.js'];
+  let count = 0;
+  while (queue.length) {
+    const p = queue.shift();
+    if (seen.has(p)) continue;
+    seen.add(p);
+    const res = await fetch(BASE + p);
+    assert(res.status === 200, `${p} → HTTP ${res.status} (module graph vỡ → app rơi vào chế độ tĩnh)`);
+    const src = await res.text();
+    count++;
+    for (const m of src.matchAll(/from\s+'(\.[^']+)'/g)) {
+      const base = p.slice(0, p.lastIndexOf('/'));
+      const parts = (base + '/' + m[1]).split('/');
+      const out = [];
+      for (const seg of parts) {
+        if (seg === '.' || seg === '') continue;
+        if (seg === '..') out.pop(); else out.push(seg);
+      }
+      queue.push('/' + out.join('/'));
+    }
+  }
+  return `${count} module OK`;
+});
+
 // ---- tổng kết ----
 const passed = results.filter((r) => r.ok).length;
 console.log(`\n📊 Kết quả: ${passed}/${results.length} pass`);
