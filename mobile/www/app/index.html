@@ -18,6 +18,23 @@
   <script>
     /* Áp theme sớm trước first-paint: light mặc định, dark qua class html.dark */
     try { if (localStorage.getItem('upio-theme') === 'dark') document.documentElement.classList.add('dark'); } catch (e) { /* storage chặn */ }
+    /* ERROR TRAP: lỗi module/JS hiện thẳng lên màn hình — hết đoán mù */
+    window.__errs = [];
+    function __showErr(m) {
+      try {
+        window.__errs.push(String(m).slice(0, 300));
+        var box = document.getElementById('err-trap');
+        if (!box) {
+          box = document.createElement('div');
+          box.id = 'err-trap';
+          box.style.cssText = 'position:fixed;bottom:64px;left:8px;right:8px;z-index:99999;background:#0a0a0a;color:#ff6b6b;font:11.5px/1.5 ui-monospace,monospace;padding:10px;border-radius:10px;max-height:40vh;overflow:auto;white-space:pre-wrap';
+          document.body && document.body.appendChild(box);
+        }
+        box.textContent = 'JS ERRORS:\n' + window.__errs.join('\n');
+      } catch (e2) {}
+    }
+    window.addEventListener('error', function (e) { __showErr((e.message || 'error') + ' @ ' + (e.filename || '').split('/').slice(-1)[0] + ':' + (e.lineno || '?')); });
+    window.addEventListener('unhandledrejection', function (e) { __showErr('promise: ' + (e.reason && e.reason.message || e.reason)); });
   </script>
 </head>
 <body>

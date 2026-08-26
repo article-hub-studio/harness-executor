@@ -3,7 +3,7 @@
   "appName": "Harness Executor",
   "webDir": "www",
   "server": {
-    "androidScheme": "http",
+    "androidScheme": "https",
     "allowNavigation": [
       "*"
     ]
