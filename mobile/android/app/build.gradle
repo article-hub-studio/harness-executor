@@ -1,0 +1,68 @@
+apply plugin: 'com.android.application'
+
+// upio: ký APK tự động — đọc keystore từ env (CI secrets); thiếu thì fallback debug signing
+def upioStoreFile = System.getenv("UPPIO_STORE_FILE")
+def upioSigning = null
+if (upioStoreFile != null && file(upioStoreFile).exists()) {
+    upioSigning = signingConfigs.create("upio") {
+        storeFile file(upioStoreFile)
+        storePassword System.getenv("UPPIO_STORE_PASSWORD")
+        keyAlias System.getenv("UPPIO_KEY_ALIAS")
+        keyPassword System.getenv("UPPIO_KEY_PASSWORD")
+    }
+}
+
+android {
+    namespace "com.upio.executor"
+    compileSdk rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "com.upio.executor"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode (System.getenv("UPIO_VERSION_CODE") ?: "1").toInteger()
+        versionName System.getenv("UPIO_VERSION_NAME") ?: "1.0.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // upio: keystore CI nếu có, không thì dùng debug key (vẫn cài được lên máy)
+            signingConfig upioSigning != null ? upioSigning : signingConfigs.debug
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

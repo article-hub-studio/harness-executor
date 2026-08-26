@@ -1,0 +1,96 @@
+<!doctype html>
+<!-- upio Executor — APK launcher: trỏ tới harness server trên LAN -->
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>upio Executor</title>
+<style>
+  :root{--bg:#fff;--sf:#fafafa;--tx:#0a0a0a;--mu:#737373;--bd:#e5e5e5}
+  @media(prefers-color-scheme:dark){:root{--bg:#0a0a0a;--sf:#141414;--tx:#fafafa;--mu:#a3a3a3;--bd:#262626}}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--tx);
+    min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:max(24px,env(safe-area-inset-top)) 20px max(24px,env(safe-area-inset-bottom))}
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  .logo{width:44px;height:44px;border-radius:12px;background:#111113;color:#fff;display:flex;align-items:center;justify-content:center}
+  .logo svg{width:24px;height:24px}
+  h1{font-size:26px;font-weight:800;letter-spacing:-.02em}
+  h1 .dot{color:var(--mu)}
+  .tag{color:var(--mu);font-size:13px;margin-bottom:34px;letter-spacing:.04em;text-transform:uppercase;font-weight:600}
+  form{width:100%;max-width:420px}
+  label{display:block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mu);margin-bottom:8px}
+  input{width:100%;padding:14px 16px;font-size:16px;border-radius:10px;border:1px solid var(--bd);
+    background:var(--sf);color:var(--tx);outline:none;transition:border-color .15s}
+  input:focus{border-color:var(--tx)}
+  button{width:100%;margin-top:14px;padding:15px;font-size:15px;font-weight:700;border:0;border-radius:10px;
+    background:var(--tx);color:var(--bg);cursor:pointer;letter-spacing:.02em;transition:opacity .15s,transform .1s}
+  button:active{transform:scale(.98)} button:disabled{opacity:.55}
+  .hint{margin-top:22px;color:var(--mu);font-size:12.5px;line-height:1.7;text-align:center}
+  .hint code{background:var(--sf);border:1px solid var(--bd);padding:1px 6px;border-radius:5px;font-size:11.5px}
+  .err{display:none;width:100%;max-width:420px;margin-top:12px;color:#dc2626;font-size:13px;text-align:center}
+  .foot{position:fixed;bottom:max(14px,env(safe-area-inset-bottom));left:0;right:0;text-align:center;color:var(--mu);font-size:11px}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid var(--bd);border-top-color:var(--tx);border-radius:50%;
+    vertical-align:-2px;margin-right:7px;animation:r .8s linear infinite}
+  @keyframes r{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+  <div class="brand">
+    <div class="logo" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none"><rect x="4.2" y="4.2" width="15.6" height="15.6" rx="4.5" stroke="#fff" stroke-width="2"/><circle cx="12" cy="12" r="2.1" fill="#fff"/></svg>
+    </div>
+    <h1>upio<span class="dot">.</span></h1>
+  </div>
+  <div class="tag">mobile mcp executor</div>
+
+  <form id="f">
+    <label for="addr">Địa chỉ harness server</label>
+    <input id="addr" type="url" inputmode="url" autocomplete="off" spellcheck="false"
+           placeholder="http://192.168.1.10:8787" required>
+    <button id="go" type="submit">Kết nối</button>
+    <div class="err" id="err"></div>
+  </form>
+
+  <div class="hint">
+    Trên máy tính chạy: <code>node server/index.js</code><br>
+    Dùng cùng Wi-Fi · lấy IP bằng <code>hostname -I</code> · cổng mặc định <code>8787</code>
+  </div>
+  <div class="foot">upio labs · MCP Executor Harness</div>
+
+<script>
+(function () {
+  var KEY = 'upio.server';
+  var $ = function (s) { return document.querySelector(s); };
+  var addr = $('#addr'), err = $('#err'), btn = $('#go');
+  try { var saved = localStorage.getItem(KEY); if (saved) addr.value = saved; } catch (e) {}
+  // tự gợi ý: nếu mở qua file:// thì để placeholder, còn nếu có origin http thì dùng
+  if (!addr.value && location.protocol.startsWith('http') && location.port) {
+    addr.value = location.origin;
+  }
+  $('#f').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var v = addr.value.trim().replace(/\/+$/, '');
+    if (!/^https?:\/\//.test(v)) v = 'http://' + v;
+    err.style.display = 'none';
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spin"></span>Đang kết nối…';
+    fetch(v + '/api/status', { signal: AbortSignal.timeout(6000) })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || j.ok !== true) throw new Error('không phải harness server');
+        try { localStorage.setItem(KEY, v); } catch (e2) {}
+        location.replace(v);
+      })
+      .catch(function (e) {
+        btn.disabled = false;
+        btn.textContent = 'Kết nối';
+        err.textContent = 'Không kết nối được: ' + (e && e.message ? e.message : 'lỗi mạng') + ' — kiểm tra IP/cổng và cùng Wi-Fi.';
+        err.style.display = 'block';
+      });
+  });
+})();
+</script>
+</body>
+</html>

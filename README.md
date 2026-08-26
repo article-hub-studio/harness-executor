@@ -46,6 +46,27 @@ npm run build-icons           # tái sinh web/js/icons.js (cần: npm i --no-sav
 - **Android (Chrome)**: menu ⋮ → *Install app* / *Add to Home screen*.
 - Service worker cache static → mở lại được cả khi offline; API vẫn cần server.
 
+## 📲 App Android (APK) — build & ký tự động
+
+Repo có sẵn workflow GitHub Actions (`.github/workflows/release.yml`):
+
+```bash
+# Release bản mới — chỉ cần đẩy tag:
+git tag v1.0.1 && git push origin v1.1.1   # hỗ trợ tới v9.9.9
+# hoặc chạy tay: Actions → Release Android APK → Run workflow → nhập version
+```
+
+CI sẽ: sync Capacitor → build APK release trên runner → **ký tự động** (dùng repo secrets
+`ANDROID_KEYSTORE_B64`/`ANDROID_STORE_PASSWORD`/`ANDROID_KEY_ALIAS`/`ANDROID_KEY_PASSWORD`
+nếu có, không có thì tự sinh keystore ephemeral — APK vẫn cài được, chỉ cần gỡ bản cũ khi lên version mới)
+→ tạo **GitHub Release** kèm file `upio-executor-vX.Y.Z.apk`.
+
+App mở ra là màn launcher đen–trắng: nhập địa chỉ harness server (vd `http://192.168.1.10:8787`) →
+Kết nối → load UI mới nhất trực tiếp từ server (cập nhật tính năng không cần cài lại APK).
+
+Dự án native nằm ở `mobile/android` (Capacitor 6, appId `com.upio.executor`,
+`usesCleartextTraffic=true` cho HTTP LAN).
+
 ## 🧩 Tính năng
 
 | Khu vực | Mô tả |

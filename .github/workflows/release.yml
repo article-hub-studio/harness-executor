@@ -1,0 +1,119 @@
+name: Release Android APK
+
+on:
+  push:
+    tags: ['v*']            # v1.0.0 … v9.9.9
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Phiên bản (semver, vd 1.0.0)'
+        required: true
+        default: '1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  release-apk:
+    runs-on: ubuntu-latest   # runner có sẵn Android SDK ($ANDROID_HOME)
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Xác định phiên bản từ tag/input
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            V="${{ inputs.version }}"
+          else
+            V="${GITHUB_REF_NAME#v}"
+          fi
+          case "$V" in *.*.*) : ;; *.*) V="$V.0" ;; *) V="$V.0.0" ;; esac
+          IFS='.' read -r A B C <<< "$V"
+          CODE=$((A * 10000 + B * 100 + C))
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+          echo "Phiên bản: v$V (versionCode $CODE)"
+
+      - name: Sync Capacitor (web assets → android)
+        working-directory: mobile
+        run: |
+          npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+          npx cap sync android
+
+      - name: Chuẩn bị keystore (secrets nếu có, không thì tự sinh ephemeral)
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          mkdir -p .signing
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > .signing/upio.jks
+            {
+              echo "UPPIO_STORE_FILE=$PWD/.signing/upio.jks"
+              echo "UPPIO_STORE_PASSWORD=$KS_PASS"
+              echo "UPPIO_KEY_ALIAS=$KEY_ALIAS"
+              echo "UPPIO_KEY_PASSWORD=$KEY_PASS"
+            } >> "$GITHUB_ENV"
+            echo "Ký bằng keystore từ repo secrets"
+          else
+            keytool -genkeypair -v -keystore .signing/upio.jks -alias upio \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass upio-sign-2026 -keypass upio-sign-2026 \
+              -dname "CN=upio Executor,O=upio labs,C=VN" >/dev/null 2>&1
+            {
+              echo "UPPIO_STORE_FILE=$PWD/.signing/upio.jks"
+              echo "UPPIO_STORE_PASSWORD=upio-sign-2026"
+              echo "UPPIO_KEY_ALIAS=upio"
+              echo "UPPIO_KEY_PASSWORD=upio-sign-2026"
+            } >> "$GITHUB_ENV"
+            echo "::warning::Chưa cấu hình secrets ANDROID_KEYSTORE_B64 — dùng keystore ephemeral (mỗi release khác key, cần gỡ app cũ trước khi cài bản mới)"
+          fi
+
+      - name: Build APK (assembleRelease)
+        working-directory: mobile/android
+        env:
+          UPIO_VERSION_NAME: ${{ steps.ver.outputs.version }}
+          UPIO_VERSION_CODE: ${{ steps.ver.outputs.code }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Verify chữ ký + đặt tên artifact
+        run: |
+          APK=$(ls mobile/android/app/build/outputs/apk/release/*.apk | head -1)
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$BT/apksigner" verify --print-certs "$APK" | head -5
+          DEST="upio-executor-v${{ steps.ver.outputs.version }}.apk"
+          cp "$APK" "$DEST"
+          echo "APK_PATH=$DEST" >> "$GITHUB_ENV"
+
+      - name: Tạo GitHub Release + upload APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: upio Executor v${{ steps.ver.outputs.version }}
+          prerelease: ${{ contains(steps.ver.outputs.version, '-') }}
+          body: |
+            ## 📱 upio MCP Executor Harness — bản Android
+
+            - **APK đã ký** — tải về và cài trực tiếp (cho phép "Nguồn không xác định")
+            - Mở app → nhập địa chỉ harness server, ví dụ `http://192.168.1.10:8787` → **Kết nối**
+            - Chạy server trên máy tính/Linux: `node server/index.js` (không cần npm install)
+            - App load UI mới nhất trực tiếp từ server — cập nhật tính năng không cần cài lại APK
+
+            ### Ghi chú ký APK
+            Keystore release chính thức: đặt repo secrets `ANDROID_KEYSTORE_B64`, `ANDROID_STORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`.
+            Nếu chưa đặt, bản này dùng keystore ephemeral (phải gỡ bản cũ trước khi cài bản mới).
+          files: ${{ env.APK_PATH }}
+          fail_on_unmatched_files: true

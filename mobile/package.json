@@ -1,0 +1,11 @@
+{
+  "name": "upio-executor-mobile",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Android wrapper (Capacitor) cho upio MCP Executor Harness",
+  "devDependencies": {
+    "@capacitor/android": "6.2.1",
+    "@capacitor/cli": "6.2.1",
+    "@capacitor/core": "6.2.1"
+  }
+}
