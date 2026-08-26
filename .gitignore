@@ -1,0 +1,14 @@
+# runtime & môi trường cục bộ
+.env
+logs/
+tmp/
+*.log
+
+# state runtime (được tạo tự động khi chạy)
+data/state.json
+data/models.json
+data/audit.jsonl
+
+# hệ thống
+.DS_Store
+Thumbs.db

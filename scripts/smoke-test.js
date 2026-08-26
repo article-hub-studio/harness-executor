@@ -1,0 +1,166 @@
+// smoke-test.js — kiểm thử end-to-end toàn bộ harness. Chạy khi server đang mở:
+//   node server/index.js &   rồi   node scripts/smoke-test.js [baseUrl]
+import http from 'node:http';
+
+const BASE = process.argv[2] || `http://127.0.0.1:${process.env.PORT || 8787}`;
+const results = [];
+const check = async (name, fn) => {
+  try { const info = await fn(); results.push({ name, ok: true, info }); console.log(`  ✔ ${name}${info ? ' — ' + info : ''}`); }
+  catch (e) { results.push({ name, ok: false, info: e.message }); console.log(`  ✖ ${name} — ${e.message}`); }
+};
+const assert = (cond, msg) => { if (!cond) throw new Error(msg); };
+
+async function req(method, p, body) {
+  const res = await fetch(BASE + p, {
+    method,
+    headers: body ? { 'content-type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(20000),
+  });
+  const text = await res.text();
+  let json = null; try { json = JSON.parse(text); } catch { /* giữ text */ }
+  return { status: res.status, json, text };
+}
+const expectOk = (r, what) => { assert(r.status >= 200 && r.status < 300, `${what}: HTTP ${r.status} ${String(r.text).slice(0, 120)}`); return r.json; };
+
+/** Đọc SSE thô trong ms mili-giây, trả về danh sách tên event nhìn thấy. */
+function listenSse(ms, trigger) {
+  return new Promise((resolve) => {
+    const seen = new Set();
+    const u = new URL('/api/events', BASE);
+    const hreq = http.get(u, (res) => {
+      res.setEncoding('utf8');
+      res.on('data', (chunk) => {
+        for (const m of chunk.matchAll(/event: ([a-z-]+)/g)) seen.add(m[1]);
+      });
+    });
+    hreq.on('error', () => {});
+    (async () => { await new Promise(r2 => setTimeout(r2, 400)); try { await trigger(); } catch { /* noop */ } })();
+    setTimeout(() => { hreq.destroy(); resolve([...seen]); }, ms);
+  });
+}
+
+console.log(`\n🧪 upio MCP Executor Harness — smoke test against ${BASE}\n`);
+
+await check('GET /api/status (counts đúng 98/143)', async () => {
+  const j = expectOk(await req('GET', '/api/status'), 'status');
+  assert(j.ok === true, 'ok != true');
+  assert(j.counts.mcps === 98, `mcps=${j.counts.mcps} != 98`);
+  assert(j.counts.plugins === 143, `plugins=${j.counts.plugins}`);
+  assert(j.counts.skills >= 40, `skills=${j.counts.skills}`);
+  return `node ${j.env?.node}`;
+});
+
+let pluginId;
+await check('GET /api/plugins (search + chi tiết)', async () => {
+  const list = expectOk(await req('GET', '/api/plugins?q=guard'), 'plugins');
+  assert(list.total > 0, 'search không ra kết quả');
+  pluginId = list.items[0].id;
+  const one = expectOk(await req('GET', `/api/plugins/${pluginId}`), 'plugin detail');
+  assert(one.id === pluginId, 'id lệch');
+  return `${list.total} kết quả "guard", sample=${pluginId}`;
+});
+await check('POST toggle plugin on→off', async () => {
+  const on = expectOk(await req('POST', `/api/plugins/${pluginId}/toggle`, { enabled: true }), 'toggle on');
+  const off = expectOk(await req('POST', `/api/plugins/${pluginId}/toggle`, { enabled: false }), 'toggle off');
+  assert(on.enabled === true && off.enabled === false, 'trạng thái không đổi đúng');
+  return pluginId;
+});
+
+await check('GET /api/mcps (98 items + filter category)', async () => {
+  const all = expectOk(await req('GET', '/api/mcps'), 'mcps');
+  assert(all.total === 98, `total=${all.total}`);
+  const fsCat = expectOk(await req('GET', '/api/mcps?category=filesystem'), 'filter');
+  assert(fsCat.total >= 8, 'category filesystem < 8');
+  return `98 servers, filesystem=${fsCat.total}`;
+});
+
+let connectedTools = 0;
+await check('connect MCP builtin + invoke tool', async () => {
+  const c = expectOk(await req('POST', '/api/mcps/filesystem-vaultkeeper/connect', {}), 'connect');
+  assert(c.state === 'connected', 'state != connected');
+  connectedTools = c.tools.length;
+  assert(connectedTools >= 3, 'tools quá ít');
+  const inv = expectOk(await req('POST', '/api/invoke', { server: 'filesystem-vaultkeeper', tool: 'fs.list_dir', args: { path: '/' } }), 'invoke');
+  assert(inv.ok === true, `invoke lỗi: ${inv.error}`);
+  await req('POST', '/api/mcps/filesystem-vaultkeeper/disconnect', {});
+  return `fs.list_dir OK (${connectedTools} tools)`;
+});
+
+await check('GET /api/skills', async () => {
+  const s = expectOk(await req('GET', '/api/skills'), 'skills');
+  assert(s.total >= 40, `skills=${s.total}`);
+  return `${s.total} skills`;
+});
+let runId;
+await check('POST chạy skill repo-summarize', async () => {
+  const r = expectOk(await req('POST', '/api/skills/repo-summarize/run', { input: { repo: 'upio/mcp-executor' } }), 'run');
+  runId = r.runId;
+  assert(typeof runId === 'string' && runId.startsWith('run-'), `runId=${runId}`);
+  return runId;
+});
+
+await check('GET /api/env scan', async () => {
+  const env = expectOk(await req('GET', '/api/env'), 'env');
+  assert(env.checks.length >= 8, `checks=${env.checks.length}`);
+  assert(env.summary.pass + env.summary.warn + env.summary.fail === env.checks.length, 'summary sai');
+  return `${env.checks.length} checks, pass=${env.summary.pass}`;
+});
+await check('POST /api/env/build', async () => {
+  const b = expectOk(await req('POST', '/api/env/build', { repair: false }), 'build');
+  assert(b.buildId && Array.isArray(b.applied), 'shape build sai');
+  return `${b.applied.length} applied`;
+});
+
+await check('GET /api/models (mock sẵn sàng)', async () => {
+  const m = expectOk(await req('GET', '/api/models'), 'models');
+  const mock = m.models.find((x) => x.id === 'ox-local-mock');
+  assert(mock && mock.available, 'thiếu ox-local-mock available');
+  return `${m.models.length} models`;
+});
+await check('POST /v1/chat/completions (non-stream)', async () => {
+  const r = await req('POST', '/v1/chat/completions', { messages: [{ role: 'user', content: 'Giải thích MCP trong 1 câu.' }] });
+  const j = typeof r.json === 'object' && r.json ? r.json : JSON.parse(r.text);
+  assert(j.choices?.[0]?.message?.content?.length > 10, 'content trống');
+  return `"${j.choices[0].message.content.slice(0, 60)}…"`;
+});
+await check('POST /v1/chat/completions (stream SSE)', async () => {
+  const r = await req('POST', '/v1/chat/completions', { stream: true, messages: [{ role: 'user', content: 'hello' }] });
+  const chunks = [...r.text.matchAll(/data: (\{.*\}|\[DONE\])/g)];
+  assert(chunks.length >= 3, `chunks=${chunks.length}`);
+  assert(r.text.includes('[DONE]'), 'thiếu [DONE]');
+  return `${chunks.length} chunks`;
+});
+
+let agentId;
+await check('POST spawn agent + poll tới done', async () => {
+  const s = expectOk(await req('POST', '/api/agents', { task: 'Kiểm tra database orders và tổng hợp trạng thái', maxSteps: 3 }), 'spawn');
+  agentId = s.id;
+  const deadline = Date.now() + 25000;
+  let a;
+  while (Date.now() < deadline) {
+    a = expectOk(await req('GET', `/api/agents/${agentId}`), 'agent get');
+    if (a.status !== 'running') break;
+    await new Promise((r2) => setTimeout(r2, 700));
+  }
+  assert(a.status === 'done', `status=${a.status}`);
+  assert(a.steps.length >= 1, 'không có bước nào');
+  assert(a.answer && a.answer.length > 10, 'answer trống');
+  return `${a.steps.length} steps`;
+});
+
+await check('SSE nhận ít nhất log + env events', async () => {
+  const seen = await listenSse(6000, async () => {
+    await fetch(BASE + '/api/invoke', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ server: 'filesystem-vaultkeeper', tool: 'fs.get_info', args: { path: '/tmp' }, force: true }) }).catch(() => {});
+    await fetch(BASE + '/api/env/build', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }).catch(() => {});
+  });
+  assert(seen.includes('log'), `chỉ thấy: ${seen.join(',')}`);
+  assert(seen.includes('env'), `chỉ thấy: ${seen.join(',')}`);
+  return `[${seen.join(', ')}]`;
+});
+
+// ---- tổng kết ----
+const passed = results.filter((r) => r.ok).length;
+console.log(`\n📊 Kết quả: ${passed}/${results.length} pass`);
+if (passed < results.length) { console.log('\n❌ SMOKE TEST THẤT BẠI'); process.exit(1); }
+console.log('✅ SMOKE TEST PASS TOÀN BỘ\n');

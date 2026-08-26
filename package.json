@@ -1,0 +1,17 @@
+{
+  "name": "upio-mcp-executor-harness",
+  "version": "1.0.0",
+  "description": "upio Mobile MCP Executor Harness — mobile-first WebUI + zero-dependency Node backend: 98 MCP servers, 143 plugins, skills engine, environment auto-builder, custom model hub and multi-agent orchestration.",
+  "type": "module",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js",
+    "generate": "node scripts/generate-registries.js",
+    "icons": "node scripts/gen-icons.js",
+    "smoke": "node scripts/smoke-test.js"
+  },
+  "keywords": ["mcp", "executor", "harness", "mobile", "pwa", "agents", "model-hub"],
+  "license": "MIT",
+  "engines": { "node": ">=20" }
+}

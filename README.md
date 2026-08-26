@@ -1,0 +1,103 @@
+# ⚡ upio Mobile MCP Executor Harness
+
+WebUI mobile-first (PWA) + backend Node.js **zero-dependency** cho **MCP Executor**:
+quản lý **98 MCP servers**, **143 plugins**, **41 skills**, environment auto-builder,
+custom model hub (OpenAI-compatible) và điều phối đa-agent — tất cả tối ưu cho **mobile executor**.
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  📱 PWA (web/) — vanilla JS, dark-first, offline-ready    │
+│   Home · Hub(MCP/Plugins/Skills) · Agents · Chat · Settings│
+└───────────────▲──────────────────────────────────────────┘
+                │ REST + SSE (/api/events) · OpenAI-compatible /v1
+┌───────────────┴──────────────────────────────────────────┐
+│  🖥 server/index.js — Node ≥20, KHÔNG npm dependency      │
+│   ├ executor/   MCP Executor core: connect·invoke·audit   │
+│   │  └ builtin-servers/  98 server mô phỏng chạy offline  │
+│   ├ registry/   plugins(143)·mcps(98)·skills(41)          │
+│   ├ envbuilder/ quét + tự sửa môi trường, stream log      │
+│   ├ modelhub/   provider tuỳ chỉnh + ox-local-mock        │
+│   └ subagents/  orchestrator plan→tool→observe→final      │
+└──────────────────────────────────────────────────────────┘
+```
+
+## 🚀 Khởi động nhanh
+
+```bash
+node server/index.js          # hoặc: ./start.sh  hoặc: npm start
+# ➜ http://localhost:8787     (đổi cổng: PORT=3000 node server/index.js)
+```
+
+Mở trên điện thoại cùng mạng Wi‑Fi: `http://<IP-máy-tính>:8787`.
+Kiểm thử toàn bộ hệ thống:
+
+```bash
+npm run smoke                 # cần server đang chạy
+npm run generate              # sinh lại data/*.json (98/143/41 — deterministic)
+npm run icons                 # sinh lại icon PNG cho PWA
+```
+
+## 📲 Cài PWA lên điện thoại
+
+- **iOS (Safari)**: nút Share → *Add to Home Screen*.
+- **Android (Chrome)**: menu ⋮ → *Install app* / *Add to Home screen*.
+- Service worker cache static → mở lại được cả khi offline; API vẫn cần server.
+
+## 🧩 Tính năng
+
+| Khu vực | Mô tả |
+|---|---|
+| **Hub** | 98 MCP servers + 143 plugins + 41 skills: tìm kiếm, lọc theo category, bottom-sheet chi tiết, connect/disconnect, gọi tool với form sinh tự từ JSON Schema, toggle plugin, chạy skill xem tiến độ từng bước realtime |
+| **Agents** | Spawn subagent runtime: chọn task, số bước, tools từ server đã connect, model — xem timeline thought/action/observation, cancel bất cứ lúc nào |
+| **Chat** | Giao diện chat stream typewriter qua `/v1/chat/completions` chuẩn OpenAI |
+| **Settings** | Environment doctor (scan/build/repair kèm log console trực tiếp), quản lý model provider (baseUrl/key/model, Test latency), About |
+
+### Executor core
+- Mọi tool call đi qua **plugin pipeline** (`preInvoke`/`postInvoke`), ghi **audit** vào `data/audit.jsonl`, timeout 15s.
+- Transport: `builtin` (mô phỏng offline, deterministic), `stdio` (spawn tiến trình MCP thật, JSON-RPC 2.0), `http` (POST JSON-RPC).
+- Tool nguy hiểm (`fs.write_file`, `ops.deploy`, `chain.send_tx`…) yêu cầu `approved:true`.
+
+### Model Hub
+- Provider mặc định **ox-local-mock**: trả lời có cấu trúc tiếng Việt/Anh, chạy hoàn toàn offline, hỗ trợ streaming.
+- Thêm provider **OpenAI-compatible** bất kỳ (OpenAI, DeepSeek, Ollama, vLLM…) trong Settings → Test → đặt mặc định.
+
+### Environment auto-builder
+- Scan: node/npm/python3/git/curl/disk/RAM/port/data dirs/.env/registries.
+- Build: tạo thư mục, ghi `.env`, dọn tmp, state.json — stream log qua SSE event `env`.
+
+## 🔌 API chính
+
+| Endpoint | Ý nghĩa |
+|---|---|
+| `GET /api/status` | sức khoẻ hệ thống + counts |
+| `GET /api/mcps` · `/api/mcps/:id` | danh sách/chi tiết server (+`?q=&category=`) |
+| `POST /api/mcps/:id/connect|disconnect` | kết nối transport |
+| `POST /api/invoke` `{server,tool,args}` | gọi tool qua pipeline |
+| `GET /api/plugins` · `POST /api/plugins/:id/toggle` | plugin registry |
+| `GET /api/skills` · `POST /api/skills/:id/run` | skills + chạy streaming |
+| `GET /api/env` · `POST /api/env/build` | environment scan/build |
+| `GET /api/models` · `PUT /api/models/config` · `POST /api/models/test` | model hub |
+| `POST /v1/chat/completions` | **OpenAI-compatible** (stream SSE OK) |
+| `GET/POST /api/agents` · `GET /api/agents/:id` · `POST .../cancel` | orchestrator |
+| `GET /api/events` | SSE: `log`,`skill-run`,`env`,`agent-step`,`mcp`,`plugin` |
+
+Đặc tả đầy đủ: [`docs/SPEC.md`](docs/SPEC.md).
+
+## 📁 Cấu trúc
+
+```
+server/index.js            HTTP + wiring (PORT=8787)
+server/src/…               executor · registry · envbuilder · modelhub · subagents · router · sse
+web/                       PWA: index.html · css/app.css · js/{app,api}.js · js/views/* · sw.js
+data/                      mcps.json(98) · plugins.json(143) · skills.json(41) · state.json · audit.jsonl
+scripts/                   generate-registries.js · gen-icons.js · smoke-test.js
+docs/SPEC.md               hợp đồng kỹ thuật đầy đủ
+```
+
+## 🔒 Lưu ý bảo mật
+
+Server dành cho môi trường local/LAN tin cậy: **chưa có auth**, không exposing ra internet công cộng.
+Tool "nguy hiểm" luôn cần cờ `approved` — UI hiển thị checkbox tương ứng.
+
+---
+Made with ⚡ by upio labs · zero-dependency philosophy: chỉ cần Node ≥ 20.

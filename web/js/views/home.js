@@ -1,0 +1,153 @@
+/* ============================================================
+   upio web — view Home: hero, stat cards, quick actions,
+   activity feed realtime (SSE 'log').
+   ============================================================ */
+import { api, listen, esc, toast, openSheet, store, fmtDur, fmtClock, fmtNum } from '../app.js';
+import { openSkillSheet } from './hub.js';
+
+export async function render(el) {
+  el.innerHTML = `
+  <div class="container">
+    <header class="hero">
+      <h1 class="hero-brand">upio <span class="hero-zap">⚡</span> executor</h1>
+      <p class="hero-sub">Mobile control plane cho MCP servers · plugins · skills · agents</p>
+    </header>
+
+    <!-- Stat grid -->
+    <section class="stat-grid" aria-label="Thống kê">
+      <div class="card stat"><div class="stat-label">⏱️ Uptime</div><div class="stat-value" id="st-uptime">—</div><div class="stat-sub" id="st-env"></div></div>
+      <div class="card stat"><div class="stat-label">🧩 Plugins</div><div class="stat-value" id="st-plugins">—</div><div class="stat-sub"></div></div>
+      <div class="card stat hl"><div class="stat-label">🔌 MCPs</div><div class="stat-value" id="st-mcps">—</div><div class="stat-sub" id="st-connected">&nbsp;</div></div>
+      <div class="card stat"><div class="stat-label">✨ Skills</div><div class="stat-value" id="st-skills">—</div><div class="stat-sub"></div></div>
+    </section>
+
+    <!-- Quick actions -->
+    <h2 class="sec-title">Quick actions</h2>
+    <section class="qa-row">
+      <button type="button" class="btn primary" id="qa-build">🩺 Build Environment</button>
+      <button type="button" class="btn ghost" id="qa-skill">✨ Run skill gợi ý</button>
+    </section>
+
+    <!-- Activity feed -->
+    <h2 class="sec-title">Activity <span class="live-dot" title="realtime qua SSE"></span></h2>
+    <section class="card feed-card">
+      <ul class="feed" id="feed"></ul>
+      <div class="empty" id="feed-empty">
+        <div class="empty-ico">📡</div>
+        <p><b>Chưa có hoạt động nào</b></p>
+        <p class="dim">Feed sẽ chạy realtime khi nhận SSE event <code>log</code> từ server.</p>
+      </div>
+    </section>
+  </div>`;
+
+  /* ----- stat cards ----- */
+  const $ = (id) => el.querySelector('#' + id);
+
+  function fillStats(s) {
+    if (!s) return; // offline — giữ '—'
+    const counts = s.counts || {};
+    $('st-plugins').textContent = fmtNum(counts.plugins);
+    $('st-mcps').textContent = fmtNum(counts.mcps);
+    $('st-skills').textContent = fmtNum(counts.skills);
+    const conn = typeof s.connectedMcps === 'number' ? s.connectedMcps : null;
+    $('st-connected').innerHTML = conn === null ? '&nbsp;' : esc(`⚡ ${conn} connected`);
+    $('st-env').textContent = s.env && s.env.node ? `node ${s.env.node}` : '';
+  }
+
+  // Uptime tick mỗi giây (mốc từ lần fetch status gần nhất)
+  let uptimeBase = store.status ? store.status.uptimeSec : null;
+  let fetchedAt = Date.now();
+  function tickUptime() {
+    if (uptimeBase == null) { $('st-uptime').textContent = '—'; return; }
+    $('st-uptime').textContent = fmtDur(uptimeBase + (Date.now() - fetchedAt) / 1000);
+  }
+
+  const offStatus = listen('status', (s) => {
+    if (!s) return;
+    uptimeBase = s.uptimeSec;
+    fetchedAt = Date.now();
+    fillStats(s);
+    tickUptime();
+  });
+  fillStats(store.status);
+  tickUptime();
+  const upTimer = setInterval(tickUptime, 1000);
+
+  /* ----- Quick action: Build Environment → auto sang Settings xem log ----- */
+  $('qa-build').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    btn.classList.add('loading');
+    try {
+      await api.envBuild(false);
+      store.envBuilding = true;
+      toast('Environment build đã bắt đầu — mở Settings…', 'ok');
+      location.hash = '#/settings';
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      btn.classList.remove('loading');
+    }
+  });
+
+  /* ----- Quick action: Run skill gợi ý (sheet chọn nhanh) ----- */
+  async function loadSkills() {
+    if (store.registries.skills.length) return store.registries.skills;
+    try {
+      const d = await api.skills();
+      store.registries.skills = d.items || [];
+    } catch { /* offline */ }
+    return store.registries.skills;
+  }
+
+  $('qa-skill').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    btn.classList.add('loading');
+    const skills = await loadSkills();
+    btn.classList.remove('loading');
+    if (!skills.length) { toast('Không tải được danh sách skills (API offline)', 'warn'); return; }
+    openSheet(`
+      <div class="sheet-head"><span class="rc-icon">✨</span>
+        <div><div class="sheet-title">Chạy skill nhanh</div>
+        <div class="sheet-sub">${esc(String(skills.length))} skills khả dụng</div></div>
+      </div>
+      <div id="skill-pick">${skills.slice(0, 40).map((sk) => `
+        <button type="button" class="card row-card" data-skill-id="${esc(sk.id)}">
+          <span class="rc-icon">${esc(sk.icon || '✨')}</span>
+          <span class="rc-main">
+            <span class="rc-top"><b>${esc(sk.name)}</b></span>
+            <span class="rc-desc">${esc(sk.description)}</span>
+            <span class="rc-meta">${esc((sk.steps || []).length)} bước · ${esc((sk.inputs || []).length)} input</span>
+          </span>
+          <span class="rc-chevron">›</span>
+        </button>`).join('')}
+      </div>`);
+    document.getElementById('skill-pick').addEventListener('click', (ev) => {
+      const row = ev.target.closest('[data-skill-id]');
+      if (!row) return;
+      const sk = skills.find((x) => x.id === row.dataset.skillId);
+      if (sk) openSkillSheet(sk);
+    });
+  });
+
+  /* ----- Activity feed realtime (SSE 'log') ----- */
+  const feed = $('feed');
+  const feedEmpty = $('feed-empty');
+
+  function prependLog(evt) {
+    const line = evt.line ?? evt.message ?? evt.detail ?? JSON.stringify(evt);
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="feed-time">${fmtClock()}</span><span class="feed-line">${esc(line)}</span>`;
+    feed.prepend(li);
+    while (feed.children.length > 50) feed.lastElementChild.remove(); // giữ tối đa 50 dòng
+    feedEmpty.classList.add('hidden');
+  }
+
+  const offLog = listen('log', prependLog);
+
+  /* ----- cleanup khi rời view ----- */
+  return () => {
+    clearInterval(upTimer);
+    offStatus();
+    offLog();
+  };
+}

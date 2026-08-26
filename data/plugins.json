@@ -1,0 +1,2416 @@
+{
+ "generatedAt": "2026-08-26T07:08:54.646Z",
+ "version": 1,
+ "total": 143,
+ "items": [
+  {
+   "id": "auto-guardian-1",
+   "name": "Auto Guardian 1",
+   "category": "automation",
+   "icon": "⚡",
+   "version": "1.8.6",
+   "description": "Tự động hoá luồng gọi tool theo điều kiện/lịch.",
+   "permissions": [
+    "net",
+    "net"
+   ],
+   "hooks": [
+    "onConnect",
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 9
+  },
+  {
+   "id": "trigger-insight-2",
+   "name": "Trigger Insight 2",
+   "category": "automation",
+   "icon": "⚡",
+   "version": "1.7.5",
+   "description": "Tự động hoá luồng gọi tool theo điều kiện/lịch.",
+   "permissions": [
+    "net"
+   ],
+   "hooks": [
+    "onConnect",
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 7
+  },
+  {
+   "id": "flow-metrics-3",
+   "name": "Flow Metrics 3",
+   "category": "automation",
+   "icon": "⚡",
+   "version": "1.3.6",
+   "description": "Tự động hoá luồng gọi tool theo điều kiện/lịch.",
+   "permissions": [
+    "net"
+   ],
+   "hooks": [
+    "onConnect",
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 94
+  },
+  {
+   "id": "trigger-relay-4",
+   "name": "Trigger Relay 4",
+   "category": "automation",
+   "icon": "⚡",
+   "version": "1.2.5",
+   "description": "Tự động hoá luồng gọi tool theo điều kiện/lịch.",
+   "permissions": [
+    "net"
+   ],
+   "hooks": [
+    "onConnect",
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 19
+  },
+  {
+   "id": "flow-sync-5",
+   "name": "Flow Sync 5",
+   "category": "automation",
+   "icon": "⚡",
+   "version": "1.4.7",
+   "description": "Tự động hoá luồng gọi tool theo điều kiện/lịch.",
+   "permissions": [
+    "net"
+   ],
+   "hooks": [
+    "onConnect",
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 84
+  },
+  {
+   "id": "trigger-copilot-6",
+   "name": "Trigger Copilot 6",
+   "category": "automation",
+   "icon": "⚡",
+   "version": "1.2.8",
+   "description": "Tự động hoá luồng gọi tool theo điều kiện/lịch.",
+   "permissions": [
+    "net",
+    "net"
+   ],
+   "hooks": [
+    "onConnect",
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 44
+  },
+  {
+   "id": "zap-copilot-7",
+   "name": "Zap Copilot 7",
+   "category": "automation",
+   "icon": "⚡",
+   "version": "1.1.1",
+   "description": "Tự động hoá luồng gọi tool theo điều kiện/lịch.",
+   "permissions": [
+    "net",
+    "net"
+   ],
+   "hooks": [
+    "onConnect",
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 62
+  },
+  {
+   "id": "trigger-turbo-8",
+   "name": "Trigger Turbo 8",
+   "category": "automation",
+   "icon": "⚡",
+   "version": "1.1.3",
+   "description": "Tự động hoá luồng gọi tool theo điều kiện/lịch.",
+   "permissions": [
+    "net",
+    "net"
+   ],
+   "hooks": [
+    "onConnect",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 43
+  },
+  {
+   "id": "zap-insight-9",
+   "name": "Zap Insight 9",
+   "category": "automation",
+   "icon": "⚡",
+   "version": "1.8.7",
+   "description": "Tự động hoá luồng gọi tool theo điều kiện/lịch.",
+   "permissions": [
+    "net",
+    "net"
+   ],
+   "hooks": [
+    "onConnect",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 53
+  },
+  {
+   "id": "flow-copilot-10",
+   "name": "Flow Copilot 10",
+   "category": "automation",
+   "icon": "⚡",
+   "version": "1.2.3",
+   "description": "Tự động hoá luồng gọi tool theo điều kiện/lịch.",
+   "permissions": [
+    "net"
+   ],
+   "hooks": [
+    "onConnect",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 86
+  },
+  {
+   "id": "trigger-sync-11",
+   "name": "Trigger Sync 11",
+   "category": "automation",
+   "icon": "⚡",
+   "version": "1.5.7",
+   "description": "Tự động hoá luồng gọi tool theo điều kiện/lịch.",
+   "permissions": [
+    "net"
+   ],
+   "hooks": [
+    "onConnect",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 83
+  },
+  {
+   "id": "trigger-metrics-12",
+   "name": "Trigger Metrics 12",
+   "category": "automation",
+   "icon": "⚡",
+   "version": "1.4.7",
+   "description": "Tự động hoá luồng gọi tool theo điều kiện/lịch.",
+   "permissions": [
+    "net",
+    "net"
+   ],
+   "hooks": [
+    "onConnect",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 38
+  },
+  {
+   "id": "auto-copilot-13",
+   "name": "Auto Copilot 13",
+   "category": "automation",
+   "icon": "⚡",
+   "version": "1.8.7",
+   "description": "Tự động hoá luồng gọi tool theo điều kiện/lịch.",
+   "permissions": [
+    "net"
+   ],
+   "hooks": [
+    "onConnect",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 84
+  },
+  {
+   "id": "trigger-metrics-14",
+   "name": "Trigger Metrics 14",
+   "category": "automation",
+   "icon": "⚡",
+   "version": "1.4.6",
+   "description": "Tự động hoá luồng gọi tool theo điều kiện/lịch.",
+   "permissions": [
+    "net"
+   ],
+   "hooks": [
+    "onConnect",
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 96
+  },
+  {
+   "id": "trigger-copilot-15",
+   "name": "Trigger Copilot 15",
+   "category": "automation",
+   "icon": "⚡",
+   "version": "1.5.5",
+   "description": "Tự động hoá luồng gọi tool theo điều kiện/lịch.",
+   "permissions": [
+    "net"
+   ],
+   "hooks": [
+    "onConnect",
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 34
+  },
+  {
+   "id": "zap-relay-16",
+   "name": "Zap Relay 16",
+   "category": "automation",
+   "icon": "⚡",
+   "version": "1.8.7",
+   "description": "Tự động hoá luồng gọi tool theo điều kiện/lịch.",
+   "permissions": [
+    "net"
+   ],
+   "hooks": [
+    "onConnect",
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 64
+  },
+  {
+   "id": "auto-sync-17",
+   "name": "Auto Sync 17",
+   "category": "automation",
+   "icon": "⚡",
+   "version": "1.5.4",
+   "description": "Tự động hoá luồng gọi tool theo điều kiện/lịch.",
+   "permissions": [
+    "net"
+   ],
+   "hooks": [
+    "onConnect",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 40
+  },
+  {
+   "id": "auto-copilot-18",
+   "name": "Auto Copilot 18",
+   "category": "automation",
+   "icon": "⚡",
+   "version": "1.8.0",
+   "description": "Tự động hoá luồng gọi tool theo điều kiện/lịch.",
+   "permissions": [
+    "net",
+    "net"
+   ],
+   "hooks": [
+    "onConnect",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 60
+  },
+  {
+   "id": "trace-turbo-1",
+   "name": "Trace Turbo 1",
+   "category": "devtools",
+   "icon": "🛠️",
+   "version": "1.3.8",
+   "description": "Hỗ trợ dev: bám trace, đo thời gian, cảnh báo bất thường.",
+   "permissions": [
+    "shell"
+   ],
+   "hooks": [
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 64
+  },
+  {
+   "id": "build-plus-2",
+   "name": "Build Plus 2",
+   "category": "devtools",
+   "icon": "🛠️",
+   "version": "1.1.1",
+   "description": "Hỗ trợ dev: bám trace, đo thời gian, cảnh báo bất thường.",
+   "permissions": [
+    "shell",
+    "net"
+   ],
+   "hooks": [
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 36
+  },
+  {
+   "id": "dev-metrics-3",
+   "name": "Dev Metrics 3",
+   "category": "devtools",
+   "icon": "🛠️",
+   "version": "1.0.1",
+   "description": "Hỗ trợ dev: bám trace, đo thời gian, cảnh báo bất thường.",
+   "permissions": [
+    "shell"
+   ],
+   "hooks": [
+    "onLog",
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 82
+  },
+  {
+   "id": "dev-kit-4",
+   "name": "Dev Kit 4",
+   "category": "devtools",
+   "icon": "🛠️",
+   "version": "1.7.7",
+   "description": "Hỗ trợ dev: bám trace, đo thời gian, cảnh báo bất thường.",
+   "permissions": [
+    "shell",
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 82
+  },
+  {
+   "id": "build-copilot-5",
+   "name": "Build Copilot 5",
+   "category": "devtools",
+   "icon": "🛠️",
+   "version": "1.4.4",
+   "description": "Hỗ trợ dev: bám trace, đo thời gian, cảnh báo bất thường.",
+   "permissions": [
+    "shell"
+   ],
+   "hooks": [
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 24
+  },
+  {
+   "id": "lint-insight-6",
+   "name": "Lint Insight 6",
+   "category": "devtools",
+   "icon": "🛠️",
+   "version": "1.3.4",
+   "description": "Hỗ trợ dev: bám trace, đo thời gian, cảnh báo bất thường.",
+   "permissions": [
+    "shell",
+    "net"
+   ],
+   "hooks": [
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 46
+  },
+  {
+   "id": "dev-booster-7",
+   "name": "Dev Booster 7",
+   "category": "devtools",
+   "icon": "🛠️",
+   "version": "1.7.2",
+   "description": "Hỗ trợ dev: bám trace, đo thời gian, cảnh báo bất thường.",
+   "permissions": [
+    "shell",
+    "net"
+   ],
+   "hooks": [
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 29
+  },
+  {
+   "id": "build-plus-8",
+   "name": "Build Plus 8",
+   "category": "devtools",
+   "icon": "🛠️",
+   "version": "1.5.2",
+   "description": "Hỗ trợ dev: bám trace, đo thời gian, cảnh báo bất thường.",
+   "permissions": [
+    "shell"
+   ],
+   "hooks": [
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 75
+  },
+  {
+   "id": "dev-sentinel-9",
+   "name": "Dev Sentinel 9",
+   "category": "devtools",
+   "icon": "🛠️",
+   "version": "1.1.0",
+   "description": "Hỗ trợ dev: bám trace, đo thời gian, cảnh báo bất thường.",
+   "permissions": [
+    "shell",
+    "net"
+   ],
+   "hooks": [
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 50
+  },
+  {
+   "id": "lint-sync-10",
+   "name": "Lint Sync 10",
+   "category": "devtools",
+   "icon": "🛠️",
+   "version": "1.7.7",
+   "description": "Hỗ trợ dev: bám trace, đo thời gian, cảnh báo bất thường.",
+   "permissions": [
+    "shell",
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 83
+  },
+  {
+   "id": "lint-turbo-11",
+   "name": "Lint Turbo 11",
+   "category": "devtools",
+   "icon": "🛠️",
+   "version": "1.4.1",
+   "description": "Hỗ trợ dev: bám trace, đo thời gian, cảnh báo bất thường.",
+   "permissions": [
+    "shell",
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 87
+  },
+  {
+   "id": "dev-copilot-12",
+   "name": "Dev Copilot 12",
+   "category": "devtools",
+   "icon": "🛠️",
+   "version": "1.4.2",
+   "description": "Hỗ trợ dev: bám trace, đo thời gian, cảnh báo bất thường.",
+   "permissions": [
+    "shell",
+    "net"
+   ],
+   "hooks": [
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 74
+  },
+  {
+   "id": "build-relay-13",
+   "name": "Build Relay 13",
+   "category": "devtools",
+   "icon": "🛠️",
+   "version": "1.5.0",
+   "description": "Hỗ trợ dev: bám trace, đo thời gian, cảnh báo bất thường.",
+   "permissions": [
+    "shell"
+   ],
+   "hooks": [
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 0
+  },
+  {
+   "id": "lint-sync-14",
+   "name": "Lint Sync 14",
+   "category": "devtools",
+   "icon": "🛠️",
+   "version": "1.1.9",
+   "description": "Hỗ trợ dev: bám trace, đo thời gian, cảnh báo bất thường.",
+   "permissions": [
+    "shell"
+   ],
+   "hooks": [
+    "onLog",
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 76
+  },
+  {
+   "id": "dev-turbo-15",
+   "name": "Dev Turbo 15",
+   "category": "devtools",
+   "icon": "🛠️",
+   "version": "1.3.5",
+   "description": "Hỗ trợ dev: bám trace, đo thời gian, cảnh báo bất thường.",
+   "permissions": [
+    "shell"
+   ],
+   "hooks": [
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 17
+  },
+  {
+   "id": "trace-plus-16",
+   "name": "Trace Plus 16",
+   "category": "devtools",
+   "icon": "🛠️",
+   "version": "1.1.0",
+   "description": "Hỗ trợ dev: bám trace, đo thời gian, cảnh báo bất thường.",
+   "permissions": [
+    "shell"
+   ],
+   "hooks": [
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 74
+  },
+  {
+   "id": "build-sync-17",
+   "name": "Build Sync 17",
+   "category": "devtools",
+   "icon": "🛠️",
+   "version": "1.2.5",
+   "description": "Hỗ trợ dev: bám trace, đo thời gian, cảnh báo bất thường.",
+   "permissions": [
+    "shell"
+   ],
+   "hooks": [
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 44
+  },
+  {
+   "id": "lint-turbo-18",
+   "name": "Lint Turbo 18",
+   "category": "devtools",
+   "icon": "🛠️",
+   "version": "1.1.9",
+   "description": "Hỗ trợ dev: bám trace, đo thời gian, cảnh báo bất thường.",
+   "permissions": [
+    "shell"
+   ],
+   "hooks": [
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 96
+  },
+  {
+   "id": "vector-metrics-1",
+   "name": "Vector Metrics 1",
+   "category": "ai",
+   "icon": "🤖",
+   "version": "1.3.5",
+   "description": "Tăng cường bằng AI ngay trong pipeline executor.",
+   "permissions": [
+    "model"
+   ],
+   "hooks": [
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 11
+  },
+  {
+   "id": "vector-insight-2",
+   "name": "Vector Insight 2",
+   "category": "ai",
+   "icon": "🤖",
+   "version": "1.8.3",
+   "description": "Tăng cường bằng AI ngay trong pipeline executor.",
+   "permissions": [
+    "model"
+   ],
+   "hooks": [
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 25
+  },
+  {
+   "id": "llm-guardian-3",
+   "name": "Llm Guardian 3",
+   "category": "ai",
+   "icon": "🤖",
+   "version": "1.6.5",
+   "description": "Tăng cường bằng AI ngay trong pipeline executor.",
+   "permissions": [
+    "model",
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 37
+  },
+  {
+   "id": "ai-plus-4",
+   "name": "Ai Plus 4",
+   "category": "ai",
+   "icon": "🤖",
+   "version": "1.0.3",
+   "description": "Tăng cường bằng AI ngay trong pipeline executor.",
+   "permissions": [
+    "model"
+   ],
+   "hooks": [
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 99
+  },
+  {
+   "id": "ai-turbo-5",
+   "name": "Ai Turbo 5",
+   "category": "ai",
+   "icon": "🤖",
+   "version": "1.4.0",
+   "description": "Tăng cường bằng AI ngay trong pipeline executor.",
+   "permissions": [
+    "model",
+    "net"
+   ],
+   "hooks": [
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 29
+  },
+  {
+   "id": "vector-booster-6",
+   "name": "Vector Booster 6",
+   "category": "ai",
+   "icon": "🤖",
+   "version": "1.2.5",
+   "description": "Tăng cường bằng AI ngay trong pipeline executor.",
+   "permissions": [
+    "model",
+    "net"
+   ],
+   "hooks": [
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 44
+  },
+  {
+   "id": "vector-metrics-7",
+   "name": "Vector Metrics 7",
+   "category": "ai",
+   "icon": "🤖",
+   "version": "1.1.7",
+   "description": "Tăng cường bằng AI ngay trong pipeline executor.",
+   "permissions": [
+    "model"
+   ],
+   "hooks": [
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 18
+  },
+  {
+   "id": "prompt-sync-8",
+   "name": "Prompt Sync 8",
+   "category": "ai",
+   "icon": "🤖",
+   "version": "1.4.5",
+   "description": "Tăng cường bằng AI ngay trong pipeline executor.",
+   "permissions": [
+    "model",
+    "net"
+   ],
+   "hooks": [
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 22
+  },
+  {
+   "id": "ai-copilot-9",
+   "name": "Ai Copilot 9",
+   "category": "ai",
+   "icon": "🤖",
+   "version": "1.2.5",
+   "description": "Tăng cường bằng AI ngay trong pipeline executor.",
+   "permissions": [
+    "model",
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 76
+  },
+  {
+   "id": "ai-kit-10",
+   "name": "Ai Kit 10",
+   "category": "ai",
+   "icon": "🤖",
+   "version": "1.6.5",
+   "description": "Tăng cường bằng AI ngay trong pipeline executor.",
+   "permissions": [
+    "model"
+   ],
+   "hooks": [
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 91
+  },
+  {
+   "id": "llm-turbo-11",
+   "name": "Llm Turbo 11",
+   "category": "ai",
+   "icon": "🤖",
+   "version": "1.2.6",
+   "description": "Tăng cường bằng AI ngay trong pipeline executor.",
+   "permissions": [
+    "model"
+   ],
+   "hooks": [
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 59
+  },
+  {
+   "id": "llm-sentinel-12",
+   "name": "Llm Sentinel 12",
+   "category": "ai",
+   "icon": "🤖",
+   "version": "1.1.4",
+   "description": "Tăng cường bằng AI ngay trong pipeline executor.",
+   "permissions": [
+    "model"
+   ],
+   "hooks": [
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 51
+  },
+  {
+   "id": "prompt-guardian-13",
+   "name": "Prompt Guardian 13",
+   "category": "ai",
+   "icon": "🤖",
+   "version": "1.1.5",
+   "description": "Tăng cường bằng AI ngay trong pipeline executor.",
+   "permissions": [
+    "model",
+    "net"
+   ],
+   "hooks": [
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 50
+  },
+  {
+   "id": "llm-guardian-14",
+   "name": "Llm Guardian 14",
+   "category": "ai",
+   "icon": "🤖",
+   "version": "1.6.1",
+   "description": "Tăng cường bằng AI ngay trong pipeline executor.",
+   "permissions": [
+    "model",
+    "net"
+   ],
+   "hooks": [
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 54
+  },
+  {
+   "id": "ai-sentinel-15",
+   "name": "Ai Sentinel 15",
+   "category": "ai",
+   "icon": "🤖",
+   "version": "1.3.4",
+   "description": "Tăng cường bằng AI ngay trong pipeline executor.",
+   "permissions": [
+    "model"
+   ],
+   "hooks": [
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 43
+  },
+  {
+   "id": "ai-relay-16",
+   "name": "Ai Relay 16",
+   "category": "ai",
+   "icon": "🤖",
+   "version": "1.6.2",
+   "description": "Tăng cường bằng AI ngay trong pipeline executor.",
+   "permissions": [
+    "model"
+   ],
+   "hooks": [
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 72
+  },
+  {
+   "id": "seo-relay-1",
+   "name": "Seo Relay 1",
+   "category": "web",
+   "icon": "🌍",
+   "version": "1.1.8",
+   "description": "Xử lý nội dung web trước/sau khi gọi tool.",
+   "permissions": [
+    "net"
+   ],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 5
+  },
+  {
+   "id": "web-wizard-2",
+   "name": "Web Wizard 2",
+   "category": "web",
+   "icon": "🌍",
+   "version": "1.7.9",
+   "description": "Xử lý nội dung web trước/sau khi gọi tool.",
+   "permissions": [
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 81
+  },
+  {
+   "id": "cdn-metrics-3",
+   "name": "Cdn Metrics 3",
+   "category": "web",
+   "icon": "🌍",
+   "version": "1.3.7",
+   "description": "Xử lý nội dung web trước/sau khi gọi tool.",
+   "permissions": [
+    "net",
+    "net"
+   ],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 52
+  },
+  {
+   "id": "web-sync-4",
+   "name": "Web Sync 4",
+   "category": "web",
+   "icon": "🌍",
+   "version": "1.7.8",
+   "description": "Xử lý nội dung web trước/sau khi gọi tool.",
+   "permissions": [
+    "net",
+    "net"
+   ],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 87
+  },
+  {
+   "id": "seo-relay-5",
+   "name": "Seo Relay 5",
+   "category": "web",
+   "icon": "🌍",
+   "version": "1.4.3",
+   "description": "Xử lý nội dung web trước/sau khi gọi tool.",
+   "permissions": [
+    "net"
+   ],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 58
+  },
+  {
+   "id": "seo-kit-6",
+   "name": "Seo Kit 6",
+   "category": "web",
+   "icon": "🌍",
+   "version": "1.0.3",
+   "description": "Xử lý nội dung web trước/sau khi gọi tool.",
+   "permissions": [
+    "net",
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 88
+  },
+  {
+   "id": "web-guardian-7",
+   "name": "Web Guardian 7",
+   "category": "web",
+   "icon": "🌍",
+   "version": "1.8.9",
+   "description": "Xử lý nội dung web trước/sau khi gọi tool.",
+   "permissions": [
+    "net",
+    "net"
+   ],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 69
+  },
+  {
+   "id": "web-guardian-8",
+   "name": "Web Guardian 8",
+   "category": "web",
+   "icon": "🌍",
+   "version": "1.0.1",
+   "description": "Xử lý nội dung web trước/sau khi gọi tool.",
+   "permissions": [
+    "net"
+   ],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 3
+  },
+  {
+   "id": "scraper-kit-9",
+   "name": "Scraper Kit 9",
+   "category": "web",
+   "icon": "🌍",
+   "version": "1.8.4",
+   "description": "Xử lý nội dung web trước/sau khi gọi tool.",
+   "permissions": [
+    "net"
+   ],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 66
+  },
+  {
+   "id": "cdn-insight-10",
+   "name": "Cdn Insight 10",
+   "category": "web",
+   "icon": "🌍",
+   "version": "1.1.7",
+   "description": "Xử lý nội dung web trước/sau khi gọi tool.",
+   "permissions": [
+    "net",
+    "net"
+   ],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 25
+  },
+  {
+   "id": "web-insight-11",
+   "name": "Web Insight 11",
+   "category": "web",
+   "icon": "🌍",
+   "version": "1.8.9",
+   "description": "Xử lý nội dung web trước/sau khi gọi tool.",
+   "permissions": [
+    "net",
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 49
+  },
+  {
+   "id": "scraper-insight-12",
+   "name": "Scraper Insight 12",
+   "category": "web",
+   "icon": "🌍",
+   "version": "1.7.0",
+   "description": "Xử lý nội dung web trước/sau khi gọi tool.",
+   "permissions": [
+    "net",
+    "net"
+   ],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 35
+  },
+  {
+   "id": "scraper-relay-13",
+   "name": "Scraper Relay 13",
+   "category": "web",
+   "icon": "🌍",
+   "version": "1.4.3",
+   "description": "Xử lý nội dung web trước/sau khi gọi tool.",
+   "permissions": [
+    "net"
+   ],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 55
+  },
+  {
+   "id": "seo-turbo-14",
+   "name": "Seo Turbo 14",
+   "category": "web",
+   "icon": "🌍",
+   "version": "1.8.8",
+   "description": "Xử lý nội dung web trước/sau khi gọi tool.",
+   "permissions": [
+    "net"
+   ],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 52
+  },
+  {
+   "id": "thumb-booster-1",
+   "name": "Thumb Booster 1",
+   "category": "media",
+   "icon": "🎨",
+   "version": "1.8.8",
+   "description": "Biến đổi và tối ưu media đầu ra.",
+   "permissions": [],
+   "hooks": [
+    "onLog",
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 66
+  },
+  {
+   "id": "audio-sentinel-2",
+   "name": "Audio Sentinel 2",
+   "category": "media",
+   "icon": "🎨",
+   "version": "1.3.8",
+   "description": "Biến đổi và tối ưu media đầu ra.",
+   "permissions": [],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 87
+  },
+  {
+   "id": "vid-insight-3",
+   "name": "Vid Insight 3",
+   "category": "media",
+   "icon": "🎨",
+   "version": "1.4.7",
+   "description": "Biến đổi và tối ưu media đầu ra.",
+   "permissions": [],
+   "hooks": [
+    "onLog",
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 27
+  },
+  {
+   "id": "audio-copilot-4",
+   "name": "Audio Copilot 4",
+   "category": "media",
+   "icon": "🎨",
+   "version": "1.5.3",
+   "description": "Biến đổi và tối ưu media đầu ra.",
+   "permissions": [],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 67
+  },
+  {
+   "id": "vid-copilot-5",
+   "name": "Vid Copilot 5",
+   "category": "media",
+   "icon": "🎨",
+   "version": "1.7.8",
+   "description": "Biến đổi và tối ưu media đầu ra.",
+   "permissions": [],
+   "hooks": [
+    "onLog",
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 76
+  },
+  {
+   "id": "thumb-booster-6",
+   "name": "Thumb Booster 6",
+   "category": "media",
+   "icon": "🎨",
+   "version": "1.5.1",
+   "description": "Biến đổi và tối ưu media đầu ra.",
+   "permissions": [],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 0
+  },
+  {
+   "id": "vid-booster-7",
+   "name": "Vid Booster 7",
+   "category": "media",
+   "icon": "🎨",
+   "version": "1.1.2",
+   "description": "Biến đổi và tối ưu media đầu ra.",
+   "permissions": [],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 60
+  },
+  {
+   "id": "img-sentinel-8",
+   "name": "Img Sentinel 8",
+   "category": "media",
+   "icon": "🎨",
+   "version": "1.7.8",
+   "description": "Biến đổi và tối ưu media đầu ra.",
+   "permissions": [],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 38
+  },
+  {
+   "id": "img-turbo-9",
+   "name": "Img Turbo 9",
+   "category": "media",
+   "icon": "🎨",
+   "version": "1.1.2",
+   "description": "Biến đổi và tối ưu media đầu ra.",
+   "permissions": [],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 7
+  },
+  {
+   "id": "img-turbo-10",
+   "name": "Img Turbo 10",
+   "category": "media",
+   "icon": "🎨",
+   "version": "1.7.4",
+   "description": "Biến đổi và tối ưu media đầu ra.",
+   "permissions": [],
+   "hooks": [
+    "onLog",
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 21
+  },
+  {
+   "id": "vid-turbo-11",
+   "name": "Vid Turbo 11",
+   "category": "media",
+   "icon": "🎨",
+   "version": "1.0.0",
+   "description": "Biến đổi và tối ưu media đầu ra.",
+   "permissions": [],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 35
+  },
+  {
+   "id": "thumb-plus-12",
+   "name": "Thumb Plus 12",
+   "category": "media",
+   "icon": "🎨",
+   "version": "1.8.3",
+   "description": "Biến đổi và tối ưu media đầu ra.",
+   "permissions": [],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 37
+  },
+  {
+   "id": "proc-copilot-1",
+   "name": "Proc Copilot 1",
+   "category": "system",
+   "icon": "🖥️",
+   "version": "1.8.2",
+   "description": "Quan sát & quản lý hệ thống nơi executor chạy.",
+   "permissions": [
+    "shell",
+    "fs.write"
+   ],
+   "hooks": [
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 41
+  },
+  {
+   "id": "disk-wizard-2",
+   "name": "Disk Wizard 2",
+   "category": "system",
+   "icon": "🖥️",
+   "version": "1.8.4",
+   "description": "Quan sát & quản lý hệ thống nơi executor chạy.",
+   "permissions": [
+    "shell",
+    "fs.write"
+   ],
+   "hooks": [
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 78
+  },
+  {
+   "id": "disk-relay-3",
+   "name": "Disk Relay 3",
+   "category": "system",
+   "icon": "🖥️",
+   "version": "1.7.8",
+   "description": "Quan sát & quản lý hệ thống nơi executor chạy.",
+   "permissions": [
+    "shell",
+    "fs.write"
+   ],
+   "hooks": [
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 60
+  },
+  {
+   "id": "disk-kit-4",
+   "name": "Disk Kit 4",
+   "category": "system",
+   "icon": "🖥️",
+   "version": "1.0.6",
+   "description": "Quan sát & quản lý hệ thống nơi executor chạy.",
+   "permissions": [
+    "shell",
+    "fs.write"
+   ],
+   "hooks": [
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 29
+  },
+  {
+   "id": "sys-sentinel-5",
+   "name": "Sys Sentinel 5",
+   "category": "system",
+   "icon": "🖥️",
+   "version": "1.7.6",
+   "description": "Quan sát & quản lý hệ thống nơi executor chạy.",
+   "permissions": [
+    "shell",
+    "fs.write"
+   ],
+   "hooks": [
+    "onLog",
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 71
+  },
+  {
+   "id": "proc-sync-6",
+   "name": "Proc Sync 6",
+   "category": "system",
+   "icon": "🖥️",
+   "version": "1.0.3",
+   "description": "Quan sát & quản lý hệ thống nơi executor chạy.",
+   "permissions": [
+    "shell",
+    "fs.write"
+   ],
+   "hooks": [
+    "onLog",
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 70
+  },
+  {
+   "id": "cron-wizard-7",
+   "name": "Cron Wizard 7",
+   "category": "system",
+   "icon": "🖥️",
+   "version": "1.5.3",
+   "description": "Quan sát & quản lý hệ thống nơi executor chạy.",
+   "permissions": [
+    "shell",
+    "fs.write",
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 11
+  },
+  {
+   "id": "disk-kit-8",
+   "name": "Disk Kit 8",
+   "category": "system",
+   "icon": "🖥️",
+   "version": "1.5.4",
+   "description": "Quan sát & quản lý hệ thống nơi executor chạy.",
+   "permissions": [
+    "shell",
+    "fs.write",
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 87
+  },
+  {
+   "id": "proc-copilot-9",
+   "name": "Proc Copilot 9",
+   "category": "system",
+   "icon": "🖥️",
+   "version": "1.8.9",
+   "description": "Quan sát & quản lý hệ thống nơi executor chạy.",
+   "permissions": [
+    "shell",
+    "fs.write",
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 93
+  },
+  {
+   "id": "proc-wizard-10",
+   "name": "Proc Wizard 10",
+   "category": "system",
+   "icon": "🖥️",
+   "version": "1.8.0",
+   "description": "Quan sát & quản lý hệ thống nơi executor chạy.",
+   "permissions": [
+    "shell",
+    "fs.write",
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 63
+  },
+  {
+   "id": "disk-kit-11",
+   "name": "Disk Kit 11",
+   "category": "system",
+   "icon": "🖥️",
+   "version": "1.1.2",
+   "description": "Quan sát & quản lý hệ thống nơi executor chạy.",
+   "permissions": [
+    "shell",
+    "fs.write",
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 4
+  },
+  {
+   "id": "sys-metrics-12",
+   "name": "Sys Metrics 12",
+   "category": "system",
+   "icon": "🖥️",
+   "version": "1.7.1",
+   "description": "Quan sát & quản lý hệ thống nơi executor chạy.",
+   "permissions": [
+    "shell",
+    "fs.write"
+   ],
+   "hooks": [
+    "onLog",
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 64
+  },
+  {
+   "id": "proc-guardian-13",
+   "name": "Proc Guardian 13",
+   "category": "system",
+   "icon": "🖥️",
+   "version": "1.1.0",
+   "description": "Quan sát & quản lý hệ thống nơi executor chạy.",
+   "permissions": [
+    "shell",
+    "fs.write",
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 79
+  },
+  {
+   "id": "disk-guardian-14",
+   "name": "Disk Guardian 14",
+   "category": "system",
+   "icon": "🖥️",
+   "version": "1.1.3",
+   "description": "Quan sát & quản lý hệ thống nơi executor chạy.",
+   "permissions": [
+    "shell",
+    "fs.write",
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 40
+  },
+  {
+   "id": "chart-copilot-1",
+   "name": "Chart Copilot 1",
+   "category": "data",
+   "icon": "📊",
+   "version": "1.2.6",
+   "description": "Chuyển đổi dữ liệu qua lại giữa các tool.",
+   "permissions": [
+    "fs.read"
+   ],
+   "hooks": [
+    "onLog",
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 99
+  },
+  {
+   "id": "sql-booster-2",
+   "name": "Sql Booster 2",
+   "category": "data",
+   "icon": "📊",
+   "version": "1.4.6",
+   "description": "Chuyển đổi dữ liệu qua lại giữa các tool.",
+   "permissions": [
+    "fs.read"
+   ],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 95
+  },
+  {
+   "id": "csv-sentinel-3",
+   "name": "Csv Sentinel 3",
+   "category": "data",
+   "icon": "📊",
+   "version": "1.3.8",
+   "description": "Chuyển đổi dữ liệu qua lại giữa các tool.",
+   "permissions": [
+    "fs.read",
+    "net"
+   ],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 78
+  },
+  {
+   "id": "csv-kit-4",
+   "name": "Csv Kit 4",
+   "category": "data",
+   "icon": "📊",
+   "version": "1.3.5",
+   "description": "Chuyển đổi dữ liệu qua lại giữa các tool.",
+   "permissions": [
+    "fs.read",
+    "net"
+   ],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 0
+  },
+  {
+   "id": "csv-guardian-5",
+   "name": "Csv Guardian 5",
+   "category": "data",
+   "icon": "📊",
+   "version": "1.7.0",
+   "description": "Chuyển đổi dữ liệu qua lại giữa các tool.",
+   "permissions": [
+    "fs.read"
+   ],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 64
+  },
+  {
+   "id": "sql-copilot-6",
+   "name": "Sql Copilot 6",
+   "category": "data",
+   "icon": "📊",
+   "version": "1.5.1",
+   "description": "Chuyển đổi dữ liệu qua lại giữa các tool.",
+   "permissions": [
+    "fs.read"
+   ],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 8
+  },
+  {
+   "id": "chart-sentinel-7",
+   "name": "Chart Sentinel 7",
+   "category": "data",
+   "icon": "📊",
+   "version": "1.0.5",
+   "description": "Chuyển đổi dữ liệu qua lại giữa các tool.",
+   "permissions": [
+    "fs.read",
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 54
+  },
+  {
+   "id": "json-wizard-8",
+   "name": "Json Wizard 8",
+   "category": "data",
+   "icon": "📊",
+   "version": "1.2.9",
+   "description": "Chuyển đổi dữ liệu qua lại giữa các tool.",
+   "permissions": [
+    "fs.read"
+   ],
+   "hooks": [
+    "onLog",
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 79
+  },
+  {
+   "id": "csv-kit-9",
+   "name": "Csv Kit 9",
+   "category": "data",
+   "icon": "📊",
+   "version": "1.5.8",
+   "description": "Chuyển đổi dữ liệu qua lại giữa các tool.",
+   "permissions": [
+    "fs.read",
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 76
+  },
+  {
+   "id": "csv-metrics-10",
+   "name": "Csv Metrics 10",
+   "category": "data",
+   "icon": "📊",
+   "version": "1.1.4",
+   "description": "Chuyển đổi dữ liệu qua lại giữa các tool.",
+   "permissions": [
+    "fs.read",
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 99
+  },
+  {
+   "id": "chart-insight-11",
+   "name": "Chart Insight 11",
+   "category": "data",
+   "icon": "📊",
+   "version": "1.1.2",
+   "description": "Chuyển đổi dữ liệu qua lại giữa các tool.",
+   "permissions": [
+    "fs.read"
+   ],
+   "hooks": [
+    "onLog",
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 14
+  },
+  {
+   "id": "csv-relay-12",
+   "name": "Csv Relay 12",
+   "category": "data",
+   "icon": "📊",
+   "version": "1.6.0",
+   "description": "Chuyển đổi dữ liệu qua lại giữa các tool.",
+   "permissions": [
+    "fs.read",
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 96
+  },
+  {
+   "id": "audit-wizard-1",
+   "name": "Audit Wizard 1",
+   "category": "security",
+   "icon": "🔐",
+   "version": "1.7.5",
+   "description": "Che giấu dữ liệu nhạy cảm và kiểm soát quyền.",
+   "permissions": [
+    "secrets"
+   ],
+   "hooks": [
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 71
+  },
+  {
+   "id": "acl-plus-2",
+   "name": "Acl Plus 2",
+   "category": "security",
+   "icon": "🔐",
+   "version": "1.0.4",
+   "description": "Che giấu dữ liệu nhạy cảm và kiểm soát quyền.",
+   "permissions": [
+    "secrets"
+   ],
+   "hooks": [
+    "onLog",
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 40
+  },
+  {
+   "id": "redact-turbo-3",
+   "name": "Redact Turbo 3",
+   "category": "security",
+   "icon": "🔐",
+   "version": "1.1.0",
+   "description": "Che giấu dữ liệu nhạy cảm và kiểm soát quyền.",
+   "permissions": [
+    "secrets",
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 27
+  },
+  {
+   "id": "redact-sync-4",
+   "name": "Redact Sync 4",
+   "category": "security",
+   "icon": "🔐",
+   "version": "1.4.0",
+   "description": "Che giấu dữ liệu nhạy cảm và kiểm soát quyền.",
+   "permissions": [
+    "secrets"
+   ],
+   "hooks": [
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 28
+  },
+  {
+   "id": "audit-plus-5",
+   "name": "Audit Plus 5",
+   "category": "security",
+   "icon": "🔐",
+   "version": "1.6.4",
+   "description": "Che giấu dữ liệu nhạy cảm và kiểm soát quyền.",
+   "permissions": [
+    "secrets"
+   ],
+   "hooks": [
+    "onLog",
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 9
+  },
+  {
+   "id": "acl-kit-6",
+   "name": "Acl Kit 6",
+   "category": "security",
+   "icon": "🔐",
+   "version": "1.6.2",
+   "description": "Che giấu dữ liệu nhạy cảm và kiểm soát quyền.",
+   "permissions": [
+    "secrets"
+   ],
+   "hooks": [
+    "onLog",
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 46
+  },
+  {
+   "id": "guard-sync-7",
+   "name": "Guard Sync 7",
+   "category": "security",
+   "icon": "🔐",
+   "version": "1.6.8",
+   "description": "Che giấu dữ liệu nhạy cảm và kiểm soát quyền.",
+   "permissions": [
+    "secrets",
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 90
+  },
+  {
+   "id": "acl-sync-8",
+   "name": "Acl Sync 8",
+   "category": "security",
+   "icon": "🔐",
+   "version": "1.3.5",
+   "description": "Che giấu dữ liệu nhạy cảm và kiểm soát quyền.",
+   "permissions": [
+    "secrets"
+   ],
+   "hooks": [
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 0
+  },
+  {
+   "id": "redact-guardian-9",
+   "name": "Redact Guardian 9",
+   "category": "security",
+   "icon": "🔐",
+   "version": "1.6.5",
+   "description": "Che giấu dữ liệu nhạy cảm và kiểm soát quyền.",
+   "permissions": [
+    "secrets"
+   ],
+   "hooks": [
+    "onLog",
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 72
+  },
+  {
+   "id": "audit-sync-10",
+   "name": "Audit Sync 10",
+   "category": "security",
+   "icon": "🔐",
+   "version": "1.3.1",
+   "description": "Che giấu dữ liệu nhạy cảm và kiểm soát quyền.",
+   "permissions": [
+    "secrets"
+   ],
+   "hooks": [
+    "postInvoke",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 7
+  },
+  {
+   "id": "cal-metrics-1",
+   "name": "Cal Metrics 1",
+   "category": "productivity",
+   "icon": "📋",
+   "version": "1.4.7",
+   "description": "Kết nối tool call với công việc hằng ngày.",
+   "permissions": [],
+   "hooks": [
+    "onSkillStep"
+   ],
+   "enabled": false,
+   "popularity": 89
+  },
+  {
+   "id": "mail-guardian-2",
+   "name": "Mail Guardian 2",
+   "category": "productivity",
+   "icon": "📋",
+   "version": "1.2.4",
+   "description": "Kết nối tool call với công việc hằng ngày.",
+   "permissions": [],
+   "hooks": [
+    "onLog",
+    "onSkillStep"
+   ],
+   "enabled": false,
+   "popularity": 41
+  },
+  {
+   "id": "cal-booster-3",
+   "name": "Cal Booster 3",
+   "category": "productivity",
+   "icon": "📋",
+   "version": "1.0.9",
+   "description": "Kết nối tool call với công việc hằng ngày.",
+   "permissions": [],
+   "hooks": [
+    "onLog",
+    "onSkillStep"
+   ],
+   "enabled": false,
+   "popularity": 18
+  },
+  {
+   "id": "task-kit-4",
+   "name": "Task Kit 4",
+   "category": "productivity",
+   "icon": "📋",
+   "version": "1.1.7",
+   "description": "Kết nối tool call với công việc hằng ngày.",
+   "permissions": [],
+   "hooks": [
+    "onLog",
+    "onSkillStep"
+   ],
+   "enabled": false,
+   "popularity": 95
+  },
+  {
+   "id": "cal-booster-5",
+   "name": "Cal Booster 5",
+   "category": "productivity",
+   "icon": "📋",
+   "version": "1.3.8",
+   "description": "Kết nối tool call với công việc hằng ngày.",
+   "permissions": [],
+   "hooks": [
+    "onSkillStep"
+   ],
+   "enabled": false,
+   "popularity": 74
+  },
+  {
+   "id": "task-relay-6",
+   "name": "Task Relay 6",
+   "category": "productivity",
+   "icon": "📋",
+   "version": "1.5.0",
+   "description": "Kết nối tool call với công việc hằng ngày.",
+   "permissions": [],
+   "hooks": [
+    "onLog",
+    "onSkillStep"
+   ],
+   "enabled": false,
+   "popularity": 36
+  },
+  {
+   "id": "note-turbo-7",
+   "name": "Note Turbo 7",
+   "category": "productivity",
+   "icon": "📋",
+   "version": "1.5.9",
+   "description": "Kết nối tool call với công việc hằng ngày.",
+   "permissions": [],
+   "hooks": [
+    "onSkillStep"
+   ],
+   "enabled": false,
+   "popularity": 3
+  },
+  {
+   "id": "mail-booster-8",
+   "name": "Mail Booster 8",
+   "category": "productivity",
+   "icon": "📋",
+   "version": "1.5.2",
+   "description": "Kết nối tool call với công việc hằng ngày.",
+   "permissions": [],
+   "hooks": [
+    "onLog",
+    "onSkillStep"
+   ],
+   "enabled": false,
+   "popularity": 77
+  },
+  {
+   "id": "note-sync-9",
+   "name": "Note Sync 9",
+   "category": "productivity",
+   "icon": "📋",
+   "version": "1.0.3",
+   "description": "Kết nối tool call với công việc hằng ngày.",
+   "permissions": [],
+   "hooks": [
+    "onLog",
+    "onSkillStep"
+   ],
+   "enabled": false,
+   "popularity": 51
+  },
+  {
+   "id": "cal-relay-10",
+   "name": "Cal Relay 10",
+   "category": "productivity",
+   "icon": "📋",
+   "version": "1.1.7",
+   "description": "Kết nối tool call với công việc hằng ngày.",
+   "permissions": [],
+   "hooks": [
+    "onLog",
+    "onSkillStep"
+   ],
+   "enabled": false,
+   "popularity": 98
+  },
+  {
+   "id": "mail-guardian-11",
+   "name": "Mail Guardian 11",
+   "category": "productivity",
+   "icon": "📋",
+   "version": "1.3.6",
+   "description": "Kết nối tool call với công việc hằng ngày.",
+   "permissions": [],
+   "hooks": [
+    "onSkillStep"
+   ],
+   "enabled": false,
+   "popularity": 46
+  },
+  {
+   "id": "cal-copilot-12",
+   "name": "Cal Copilot 12",
+   "category": "productivity",
+   "icon": "📋",
+   "version": "1.6.3",
+   "description": "Kết nối tool call với công việc hằng ngày.",
+   "permissions": [],
+   "hooks": [
+    "onSkillStep"
+   ],
+   "enabled": false,
+   "popularity": 23
+  },
+  {
+   "id": "rate-guardian-1",
+   "name": "Rate Guardian 1",
+   "category": "networking",
+   "icon": "🔌",
+   "version": "1.8.9",
+   "description": "Kiểm soát lưu lượng và giới hạn mạng.",
+   "permissions": [
+    "net",
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 63
+  },
+  {
+   "id": "rate-turbo-2",
+   "name": "Rate Turbo 2",
+   "category": "networking",
+   "icon": "🔌",
+   "version": "1.0.1",
+   "description": "Kiểm soát lưu lượng và giới hạn mạng.",
+   "permissions": [
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 43
+  },
+  {
+   "id": "dns-metrics-3",
+   "name": "Dns Metrics 3",
+   "category": "networking",
+   "icon": "🔌",
+   "version": "1.1.1",
+   "description": "Kiểm soát lưu lượng và giới hạn mạng.",
+   "permissions": [
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 31
+  },
+  {
+   "id": "dns-plus-4",
+   "name": "Dns Plus 4",
+   "category": "networking",
+   "icon": "🔌",
+   "version": "1.2.2",
+   "description": "Kiểm soát lưu lượng và giới hạn mạng.",
+   "permissions": [
+    "net",
+    "net"
+   ],
+   "hooks": [
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 47
+  },
+  {
+   "id": "proxy-sentinel-5",
+   "name": "Proxy Sentinel 5",
+   "category": "networking",
+   "icon": "🔌",
+   "version": "1.0.0",
+   "description": "Kiểm soát lưu lượng và giới hạn mạng.",
+   "permissions": [
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 20
+  },
+  {
+   "id": "tls-insight-6",
+   "name": "Tls Insight 6",
+   "category": "networking",
+   "icon": "🔌",
+   "version": "1.4.0",
+   "description": "Kiểm soát lưu lượng và giới hạn mạng.",
+   "permissions": [
+    "net"
+   ],
+   "hooks": [
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 53
+  },
+  {
+   "id": "tls-metrics-7",
+   "name": "Tls Metrics 7",
+   "category": "networking",
+   "icon": "🔌",
+   "version": "1.0.7",
+   "description": "Kiểm soát lưu lượng và giới hạn mạng.",
+   "permissions": [
+    "net",
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 88
+  },
+  {
+   "id": "rate-guardian-8",
+   "name": "Rate Guardian 8",
+   "category": "networking",
+   "icon": "🔌",
+   "version": "1.7.2",
+   "description": "Kiểm soát lưu lượng và giới hạn mạng.",
+   "permissions": [
+    "net",
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 97
+  },
+  {
+   "id": "tls-metrics-9",
+   "name": "Tls Metrics 9",
+   "category": "networking",
+   "icon": "🔌",
+   "version": "1.1.6",
+   "description": "Kiểm soát lưu lượng và giới hạn mạng.",
+   "permissions": [
+    "net"
+   ],
+   "hooks": [
+    "onLog",
+    "preInvoke"
+   ],
+   "enabled": false,
+   "popularity": 54
+  },
+  {
+   "id": "md-kit-1",
+   "name": "Md Kit 1",
+   "category": "text",
+   "icon": "📝",
+   "version": "1.4.9",
+   "description": "Tiện ích xử lý văn bản mạnh tay.",
+   "permissions": [],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 45
+  },
+  {
+   "id": "i18n-plus-2",
+   "name": "I18n Plus 2",
+   "category": "text",
+   "icon": "📝",
+   "version": "1.2.8",
+   "description": "Tiện ích xử lý văn bản mạnh tay.",
+   "permissions": [],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 47
+  },
+  {
+   "id": "diff-kit-3",
+   "name": "Diff Kit 3",
+   "category": "text",
+   "icon": "📝",
+   "version": "1.6.0",
+   "description": "Tiện ích xử lý văn bản mạnh tay.",
+   "permissions": [],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 43
+  },
+  {
+   "id": "i18n-sync-4",
+   "name": "I18n Sync 4",
+   "category": "text",
+   "icon": "📝",
+   "version": "1.5.6",
+   "description": "Tiện ích xử lý văn bản mạnh tay.",
+   "permissions": [],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 2
+  },
+  {
+   "id": "i18n-sync-5",
+   "name": "I18n Sync 5",
+   "category": "text",
+   "icon": "📝",
+   "version": "1.8.7",
+   "description": "Tiện ích xử lý văn bản mạnh tay.",
+   "permissions": [],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 60
+  },
+  {
+   "id": "md-relay-6",
+   "name": "Md Relay 6",
+   "category": "text",
+   "icon": "📝",
+   "version": "1.5.2",
+   "description": "Tiện ích xử lý văn bản mạnh tay.",
+   "permissions": [],
+   "hooks": [
+    "onLog",
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 56
+  },
+  {
+   "id": "i18n-sync-7",
+   "name": "I18n Sync 7",
+   "category": "text",
+   "icon": "📝",
+   "version": "1.6.7",
+   "description": "Tiện ích xử lý văn bản mạnh tay.",
+   "permissions": [],
+   "hooks": [
+    "onLog",
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 55
+  },
+  {
+   "id": "regex-guardian-8",
+   "name": "Regex Guardian 8",
+   "category": "text",
+   "icon": "📝",
+   "version": "1.3.3",
+   "description": "Tiện ích xử lý văn bản mạnh tay.",
+   "permissions": [],
+   "hooks": [
+    "postInvoke"
+   ],
+   "enabled": false,
+   "popularity": 63
+  }
+ ]
+}

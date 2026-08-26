@@ -1,0 +1,76 @@
+<!doctype html>
+<!-- upio MCP Executor — app shell (SA-web). Vanilla ES modules, no framework, no CDN. -->
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0f17">
+  <meta name="description" content="upio MCP Executor — mobile control plane cho MCP servers, plugins, skills và agents.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icons/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <title>upio MCP Executor</title>
+  <link rel="stylesheet" href="./css/app.css">
+</head>
+<body>
+  <!-- Offline / API-unreachable banner -->
+  <div id="offline-banner" role="status">⚠️ API offline — một số dữ liệu không khả dụng</div>
+
+  <!-- View containers (router hash-based) -->
+  <main id="views">
+    <section class="view active" id="view-home" aria-label="Home"></section>
+    <section class="view" id="view-hub" aria-label="Hub"></section>
+    <section class="view" id="view-agents" aria-label="Agents"></section>
+    <section class="view" id="view-chat" aria-label="Chat"></section>
+    <section class="view" id="view-settings" aria-label="Settings"></section>
+  </main>
+
+  <!-- Bottom tab bar -->
+  <nav class="tab-bar" aria-label="Điều hướng chính">
+    <button type="button" class="tab-btn active" data-route="home"><span class="tb-icon">🏠</span><span class="tb-label">Home</span></button>
+    <button type="button" class="tab-btn" data-route="hub"><span class="tb-icon">🧩</span><span class="tb-label">Hub</span></button>
+    <button type="button" class="tab-btn" data-route="agents"><span class="tb-icon">🤖</span><span class="tb-label">Agents</span></button>
+    <button type="button" class="tab-btn" data-route="chat"><span class="tb-icon">💬</span><span class="tb-label">Chat</span></button>
+    <button type="button" class="tab-btn" data-route="settings"><span class="tb-icon">⚙️</span><span class="tb-label">Settings</span></button>
+  </nav>
+
+  <!-- Bottom sheet -->
+  <div id="sheet-root" aria-hidden="true">
+    <div id="sheet-backdrop"></div>
+    <div id="sheet-panel" class="sheet" role="dialog" aria-modal="true"></div>
+  </div>
+
+  <!-- Toasts -->
+  <div id="toast-root" aria-live="polite"></div>
+
+  <!-- Boot watchdog: nếu ES modules bị chặn (vd. file://) → vẫn hiển thị shell + banner, không trắng trang -->
+  <script>
+    (function () {
+      window.addEventListener('load', function () {
+        setTimeout(function () {
+          if (window.__UPIO_BOOTED) return;
+          document.documentElement.classList.add('no-modules');
+          var b = document.getElementById('offline-banner');
+          if (b) b.classList.add('show');
+          var h = document.getElementById('view-home');
+          if (h && !h.firstChild) {
+            h.innerHTML =
+              '<div class="container"><div class="card boot-note">' +
+              '<div class="boot-emoji">🛰️</div><h2>upio executor</h2>' +
+              '<p>Đang chạy ở <b>chế độ tĩnh</b>: không tải được module JS ' +
+              '(file:// hoặc trình duyệt chặn ES modules).</p>' +
+              '<p>Hãy phục vụ thư mục <code>web/</code> qua HTTP — ví dụ server chính ở cổng <code>8787</code>.</p>' +
+              '<p class="dim">API offline — dữ liệu sẽ tự hiện khi kết nối được backend.</p>' +
+              '</div></div>';
+          }
+        }, 1500);
+      });
+    })();
+  </script>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
