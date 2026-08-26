@@ -343,7 +343,16 @@ await check('Web UI toàn vẹn: icon 99 key sạch, biến CSS tồn tại, id 
   }
 
   assert(problems.length === 0, `UI có lỗi tiềm ẩn:\n    ${problems.join('\n    ')}`);
-  return `${nIcons} icon · ${declared.size} CSS var · id khớp`;
+  // 4) tab bar: số cột CSS phải khớp số tab thật trong index.html (bug lệch nav)
+  const html = readFileSync(`${root}/index.html`, 'utf8');
+  const nTabs = (html.match(/class="tab-btn/g) || []).length;
+  const gridDecl = css.match(/\.tab-bar\s*\{[^}]*grid-template-columns:\s*repeat\((\d+)/);
+  if (gridDecl && Number(gridDecl[1]) !== nTabs) {
+    problems.push(`tab-bar chia ${gridDecl[1]} cột nhưng có ${nTabs} tab → nav lệch`);
+  }
+  assert(nTabs >= 5, `chỉ thấy ${nTabs} tab trong index.html`);
+
+  return `${nIcons} icon · ${declared.size} CSS var · ${nTabs} tab khớp · id khớp`;
 });
 
 // ---- tổng kết ----

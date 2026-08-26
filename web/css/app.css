@@ -93,9 +93,12 @@ a:hover { text-decoration-color: var(--text); }
 /* ---------- 4. Layout shell ---------- */
 #views { padding-top: calc(var(--sat) + 10px); }
 html { scroll-behavior: smooth; }
-.view { display: none; padding: 0 calc(16px + var(--sar)) calc(var(--tab-h) + var(--sab) + 26px) calc(16px + var(--sal)); animation: viewIn 220ms ease; }
-.view.active { display: block; }
-@keyframes viewIn { from { opacity: 0; } to { opacity: 1; } }
+.view { display: none; padding: 0 calc(16px + var(--sar)) calc(var(--tab-h) + var(--sab) + 26px) calc(16px + var(--sal)); }
+.view.active { display: block; animation: viewIn 300ms cubic-bezier(.22,.9,.35,1) both; }
+@keyframes viewIn {
+  from { opacity: 0; transform: translateY(8px) scale(.994); }
+  to   { opacity: 1; transform: none; }
+}
 
 .container { max-width: 1100px; margin: 0 auto; }
 .sec-title { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); margin: 22px 2px 10px; display: flex; align-items: center; gap: 8px; }
@@ -268,28 +271,63 @@ input[type="checkbox"] { accent-color: var(--text); width: 17px; height: 17px; f
 .switch input:focus-visible + .track { outline: 2px solid var(--text); outline-offset: 2px; }
 
 /* ---------- 10. Tab bar ---------- */
+/* 6 tab: auto-fit theo SỐ TAB THẬT (trước đây cứng 5 cột → lệch hẳn 1 ô).
+   Dùng flex nên thêm/bớt tab không bao giờ lệch nữa. */
 .tab-bar {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 40;
-  display: grid; grid-template-columns: repeat(5, 1fr);
+  display: flex; align-items: stretch;
   height: calc(var(--tab-h) + var(--sab));
-  padding: 0 max(var(--sar), 6px) var(--sab) max(var(--sal), 6px);
-  background: var(--surface);
+  padding: 0 max(var(--sar), 4px) var(--sab) max(var(--sal), 4px);
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  backdrop-filter: saturate(180%) blur(14px);
   border-top: 1px solid var(--border);
+  /* thanh chỉ báo trượt giữa các tab */
+  --ind-x: 0px; --ind-w: 0px; --ind-o: 0;
 }
+@supports not (backdrop-filter: blur(1px)) { .tab-bar { background: var(--surface); } }
+
+/* Chỉ báo TRƯỢT (một phần tử duy nhất, dùng transform → mượt 60fps) */
+.tab-bar::after {
+  content: ""; position: absolute; top: -1px; left: 0;
+  width: var(--ind-w); height: 2px; background: var(--text);
+  border-radius: 0 0 2px 2px;
+  transform: translateX(var(--ind-x));
+  transition: transform 420ms var(--e-spring), width 300ms var(--e-out), opacity 200ms ease;
+  opacity: var(--ind-o, 0); will-change: transform;
+}
+
 .tab-btn {
-  position: relative;
+  position: relative; flex: 1 1 0; min-width: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-  min-width: 44px; min-height: 44px; color: var(--text-faint);
-  transition: color var(--tr) ease;
+  min-height: 44px; color: var(--text-faint);
+  padding: 0 2px;
+  transition: color 220ms var(--e-out);
+  -webkit-tap-highlight-color: transparent;
 }
-.tab-btn:active { transform: scale(.96); }
 .tb-icon { display: grid; place-items: center; }
 .tb-icon svg { width: 22px; height: 22px; }
-.tb-label { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.tb-label {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  transition: opacity 220ms var(--e-out), transform 220ms var(--e-out);
+}
 .tab-btn.active { color: var(--text); }
-.tab-btn.active::before {
-  content: ""; position: absolute; top: -1px; left: 50%; transform: translateX(-50%);
-  width: 26px; height: 2px; background: var(--text);
+.tab-btn.active .tb-label { transform: translateY(-.5px); }
+
+/* Gợn sóng khi bấm — sinh từ tâm nút, không cần JS */
+.tab-btn::after {
+  content: ""; position: absolute; top: 50%; left: 50%; width: 42px; height: 42px;
+  margin: -21px 0 0 -21px; border-radius: 50%;
+  background: currentColor; opacity: 0; transform: scale(.3);
+  transition: transform 380ms var(--e-out), opacity 380ms var(--e-out);
+  pointer-events: none;
+}
+.tab-btn:active::after { opacity: .1; transform: scale(1); transition-duration: 90ms; }
+
+/* Màn hẹp: chỉ còn icon để 6 tab không bị bóp chữ */
+@media (max-width: 359px) {
+  .tb-label { font-size: 8.5px; letter-spacing: 0; }
 }
 
 /* ---------- 11. Bottom sheet ---------- */
@@ -637,9 +675,9 @@ html.dark .send-btn { color: #0a0a0a; }
 }
 
 /* Tab bar: icon nảy nhẹ khi active, nhún khi bấm */
-.tb-icon svg { transition: transform 240ms var(--e-spring); }
-.tab-btn.active .tb-icon svg { transform: translateY(-1px) scale(1.07); }
-.tab-btn:active .tb-icon svg { transform: scale(.88); }
+.tb-icon svg { transition: transform 320ms var(--e-spring); }
+.tab-btn.active .tb-icon svg { transform: translateY(-1.5px) scale(1.1); }
+.tab-btn:active .tb-icon svg { transform: scale(.86); transition-duration: 110ms; }
 
 /* Empty state: icon trôi nhẹ */
 .empty .empty-ico { animation: bob 3.4s ease-in-out infinite; }
@@ -889,3 +927,47 @@ html { scroll-behavior: smooth; }
 }
 html.dark .skel::after { background: linear-gradient(90deg, transparent, rgba(255,255,255,.06), transparent); }
 @keyframes skel-sweep { to { transform: translateX(100%); } }
+
+/* ============================================================
+   32) ANIMATION LAYER 2 — mượt hơn, tất cả bằng transform/opacity
+       (GPU-friendly), tôn trọng prefers-reduced-motion ở mục 31.
+   ============================================================ */
+/* Card/nút: chuyển động có "trọng lượng" thay vì tuyến tính */
+.card { transition: border-color 240ms var(--e-out), transform 260ms var(--e-out), box-shadow 260ms var(--e-out); }
+.btn { transition: transform 140ms var(--e-spring), background 200ms var(--e-out),
+                   border-color 200ms var(--e-out), opacity 200ms var(--e-out); }
+.btn:active:not(:disabled) { transform: scale(.955); }
+
+/* Chip lọc: chọn xong nảy nhẹ */
+.chip { transition: transform 200ms var(--e-spring), background 200ms var(--e-out), border-color 200ms var(--e-out); }
+.chip.on, .chip.active { animation: chipPop 280ms var(--e-spring); }
+@keyframes chipPop { 0% { transform: scale(.9); } 60% { transform: scale(1.045); } 100% { transform: scale(1); } }
+
+/* Switch: núm trượt có độ nảy */
+.switch .track, .switch .track::after { transition: all 260ms var(--e-spring); }
+
+/* Bottom sheet: trượt lên mềm, backdrop mờ dần */
+#sheet-panel { transition: transform 340ms var(--e-out), opacity 240ms ease; }
+#sheet-backdrop { transition: opacity 260ms ease; }
+
+/* Toast: bay vào từ dưới rồi tan */
+#toast-root > * { animation: toastIn 320ms var(--e-spring) both; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(14px) scale(.97); } }
+
+/* Danh sách dài: item hiện dần theo thứ tự (chỉ 10 item đầu để không rề rà) */
+.stagger > *:nth-child(-n+10) { animation: riseIn 380ms var(--e-out) backwards; }
+
+/* Console/terminal: dòng mới trượt vào */
+.term-console .tl, .console > div { animation: lineIn 220ms var(--e-out) both; }
+@keyframes lineIn { from { opacity: 0; transform: translateY(4px); } }
+
+/* Badge số đếm đổi giá trị → nhấp nháy nhẹ 1 lần */
+.badge.bump { animation: badgeBump 420ms var(--e-spring); }
+@keyframes badgeBump { 0% { transform: scale(1); } 40% { transform: scale(1.18); } 100% { transform: scale(1); } }
+
+/* Live dot: nhịp thở đều thay vì nháy cứng */
+.live-dot { animation: breathe 1.8s ease-in-out infinite; }
+@keyframes breathe { 0%, 100% { opacity: .35; transform: scale(.9); } 50% { opacity: 1; transform: scale(1); } }
+
+/* Hero wordmark: hiện ra nhẹ khi vào view */
+.hero-brand, .hero .wm { animation: riseIn 460ms var(--e-out) both; }

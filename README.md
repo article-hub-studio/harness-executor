@@ -66,6 +66,13 @@ Tab **Term** (kiểu agent tự động như OpenClaw/anyclaw):
   - 🔴 *Luôn cấm* (`rm -rf /`, `mkfs`, `dd if=`, fork bomb, shutdown…) → chặn trước khi chạy
 - **Shizuku** (Android/Termux): bật trong Settings hoặc checkbox trong Term → lệnh chạy qua `rish` với quyền shell cao không cần root. Hướng dẫn cài ngay trong Settings → Shizuku.
 
+## 🔐 APK ký CỐ ĐỊNH — update là xong, không cần gỡ app
+Từ **v1.2.0**, mọi APK release được ký bằng **cùng một keystore bền vững** (PKCS12, RSA 4096, hạn 30 năm) lưu trong repo secrets. Nghĩa là:
+- Tải APK mới → cài đè lên bản cũ → **giữ nguyên dữ liệu, không cần uninstall**
+- Chữ ký SHA-256: `6E:45:41:EE:3E:1E:3C:E6:61:40:6D:05:54:49:08:1E:0E:88:BC:40:EF:44:2E:6C:6C:91:6E:3B:23:F4:54:B0`
+
+> Các bản ≤ v1.1.8 dùng key ephemeral (mỗi lần build một key khác) nên **lần cuối cùng** bạn cần gỡ app cũ rồi cài v1.2.0. Từ v1.2.0 trở đi update trực tiếp.
+
 ## 🌐 Song ngữ VI / EN
 Mở **Settings → Ngôn ngữ / Language** → chọn 🇬🇧 EN để chuyển toàn bộ giao diện sang tiếng Anh (VI là mặc định). APK launcher tự dò ngôn ngữ máy.
 

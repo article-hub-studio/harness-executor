@@ -266,12 +266,27 @@ function parseRoute() {
   return Object.prototype.hasOwnProperty.call(ROUTES, name) ? name : 'home';
 }
 
+/** Đặt lại vị trí/độ rộng thanh chỉ báo trượt dưới tab bar (transform → mượt). */
+function moveTabIndicator() {
+  const bar = document.querySelector('.tab-bar');
+  const on = bar?.querySelector('.tab-btn.active');
+  if (!bar || !on) return;
+  const w = Math.max(22, Math.round(on.offsetWidth * 0.42));
+  const x = Math.round(on.offsetLeft + (on.offsetWidth - w) / 2);
+  bar.style.setProperty('--ind-w', w + 'px');
+  bar.style.setProperty('--ind-x', x + 'px');
+  bar.style.setProperty('--ind-o', '1');
+}
+window.addEventListener('resize', () => moveTabIndicator(), { passive: true });
+window.addEventListener('orientationchange', () => setTimeout(moveTabIndicator, 120));
+
 async function navigate() {
   const name = parseRoute();
   if (viewCleanup) { try { viewCleanup(); } catch { /* ignore */ } viewCleanup = null; }
   closeSheet(); // đổi tab → đóng sheet đang mở (nếu có)
   document.querySelectorAll('.view').forEach((v) => v.classList.toggle('active', v.id === `view-${name}`));
   document.querySelectorAll('.tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.route === name));
+  moveTabIndicator();
   const el = document.getElementById(`view-${name}`);
   if (!el) return;
   try {

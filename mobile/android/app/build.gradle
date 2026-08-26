@@ -17,14 +17,17 @@ android {
             if (_useUpioKey) {
                 storeFile file(_storePath)
                 storePassword (System.getenv("UPPIO_STORE_PASSWORD") ?: '')
-                keyAlias (System.getenv("UPPIO_KEY_ALIAS") ?: 'upio')
+                keyAlias (System.getenv("UPPIO_KEY_ALIAS") ?: 'harness')
                 keyPassword (System.getenv("UPPIO_KEY_PASSWORD") ?: '')
+                // PKCS12 (.p12) là định dạng keystore bền vững dùng chung mọi release
+                storeType (System.getenv("UPPIO_STORE_TYPE") ?: 'PKCS12')
             } else {
                 // placeholder — release sẽ dùng debug key khi không có keystore CI
                 storeFile file('upio-unused.jks')
                 storePassword ''
                 keyAlias ''
                 keyPassword ''
+                storeType 'PKCS12'
             }
         }
     }

@@ -52,35 +52,38 @@ jobs:
           rm -rf www/app && cp -r ../web www/app
           npx cap sync android
 
-      - name: Chuẩn bị keystore (secrets nếu có, không thì tự sinh ephemeral)
+      - name: Chuẩn bị keystore (bền vững từ secrets — mọi bản dùng CHUNG 1 key)
         env:
           KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
           KS_PASS: ${{ secrets.ANDROID_STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KS_TYPE: ${{ secrets.ANDROID_STORE_TYPE }}
         run: |
           mkdir -p .signing
           if [ -n "$KS_B64" ]; then
-            echo "$KS_B64" | base64 -d > .signing/upio.jks
+            echo "$KS_B64" | base64 -d > .signing/harness-release.p12
             {
-              echo "UPPIO_STORE_FILE=$PWD/.signing/upio.jks"
+              echo "UPPIO_STORE_FILE=$PWD/.signing/harness-release.p12"
               echo "UPPIO_STORE_PASSWORD=$KS_PASS"
-              echo "UPPIO_KEY_ALIAS=$KEY_ALIAS"
+              echo "UPPIO_KEY_ALIAS=${KEY_ALIAS:-harness}"
               echo "UPPIO_KEY_PASSWORD=$KEY_PASS"
+              echo "UPPIO_STORE_TYPE=${KS_TYPE:-PKCS12}"
             } >> "$GITHUB_ENV"
-            echo "Ký bằng keystore từ repo secrets"
+            echo "✔ Ký bằng keystore CỐ ĐỊNH từ secrets — update app không cần gỡ bản cũ"
           else
-            keytool -genkeypair -v -keystore .signing/upio.jks -alias upio \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -storepass upio-sign-2026 -keypass upio-sign-2026 \
-              -dname "CN=upio Executor,O=upio labs,C=VN" >/dev/null 2>&1
+            keytool -genkeypair -v -keystore .signing/harness-release.p12 -storetype PKCS12 \
+              -alias harness -keyalg RSA -keysize 4096 -validity 10950 \
+              -storepass harness-sign-2026 -keypass harness-sign-2026 \
+              -dname "CN=Harness Executor, O=article-hub-studio, C=VN"
             {
-              echo "UPPIO_STORE_FILE=$PWD/.signing/upio.jks"
-              echo "UPPIO_STORE_PASSWORD=upio-sign-2026"
-              echo "UPPIO_KEY_ALIAS=upio"
-              echo "UPPIO_KEY_PASSWORD=upio-sign-2026"
+              echo "UPPIO_STORE_FILE=$PWD/.signing/harness-release.p12"
+              echo "UPPIO_STORE_PASSWORD=harness-sign-2026"
+              echo "UPPIO_KEY_ALIAS=harness"
+              echo "UPPIO_KEY_PASSWORD=harness-sign-2026"
+              echo "UPPIO_STORE_TYPE=PKCS12"
             } >> "$GITHUB_ENV"
-            echo "::warning::Chưa cấu hình secrets ANDROID_KEYSTORE_B64 — dùng keystore ephemeral (mỗi release khác key, cần gỡ app cũ trước khi cài bản mới)"
+            echo "::warning::Chưa có secrets ANDROID_KEYSTORE_B64 — dùng key ephemeral (phải gỡ app cũ)"
           fi
 
       - name: Build APK (assembleRelease)
