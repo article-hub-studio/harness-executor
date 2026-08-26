@@ -148,6 +148,13 @@ Vanilla ES modules, KHÔNG framework, KHÔNG build. Trang shell `index.html` + `
 - **131/143 plugins có behavior thật** (field `behavior` + `behaviorLabel`): preInvoke — validate-required, defaults-fill, trim-strings, rate-limit, snapshot-args, redact-input; postInvoke — redact-output, clip-output, flatten-error, annotate-meta. Behavior ném lỗi ở pre-invoke → short-circuit không gọi transport.
 - Chat & Workspace render **markdown** an toàn (web/js/md.js: escape-first, code block có Copy, link chỉ http(s)).
 
-## 7. Chất lượng & kiểm thử
+## 8b. Terminal tự động (v1.2)
+
+- `GET/POST /api/terminal/sessions` · `GET/DELETE /api/terminal/:sid` · `POST /api/terminal/:sid/exec {command,via}` · `POST /api/terminal/perm/:pid/approve|deny` · `GET/PUT /api/shizuku`
+- Mỗi session folder riêng `workspace/terminals/<id>` (HOME trỏ vào đó, cwd = folder); log giữ 800 dòng cuối; timeout lệnh 120s; perm hết hạn 60s.
+- Phân loại lệnh: SAFE tự chạy · ASK (npm install/curl/chmod/rm/sudo/git push…) cần duyệt · BLOCK (rm -rf /, mkfs, dd, fork bomb) chặn. SSE events: `term`, `perm`.
+- Shizuku: dò binary `rish` (env SHIZUKU_RISH, $PREFIX/bin, ~/.termux/shizuku/, /data/local/tmp) bằng `rish -c id`; bật thì exec via='shizuku' đi qua rish.
+
+## 9. Chất lượng & kiểm thử
 - Mỗi module tự chạy được: `node --check file` sạch; có hàm `if (import.meta.url === \`file://\${process.argv[1]}\`)` demo nhỏ khi hợp lý.
 - `scripts/smoke-test.js` (MAIN): gọi toàn bộ endpoint, chạy skill, spawn agent mock, chat completion (mock + stream), verify SSE nhận ít nhất 3 loại event. Exit != 0 nếu fail.

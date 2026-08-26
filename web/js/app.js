@@ -9,6 +9,7 @@ import { gateBoot } from './boot.js';
 import * as homeView from './views/home.js';
 import * as hubView from './views/hub.js';
 import * as agentsView from './views/agents.js';
+import * as termView from './views/term.js';
 import * as chatView from './views/chat.js';
 import * as settingsView from './views/settings.js';
 
@@ -253,6 +254,7 @@ const ROUTES = {
   home: homeView,
   hub: hubView,
   agents: agentsView,
+  term: termView,
   chat: chatView,
   settings: settingsView,
 };

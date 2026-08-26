@@ -76,6 +76,20 @@ export async function render(el) {
           </form>
         </div>
 
+        <!-- (2b) SHIZUKU — nâng quyền shell trên Android không cần root -->
+        <div class="card pad" style="margin-top:14px">
+          <h3 class="card-title">${icon('blade/bolt', 'ic-sm')} Shizuku <span class="mono dim" style="font-size:10.5px">(Android / Termux)</span></h3>
+          <p class="dim" style="font-size:12.5px;line-height:1.7;margin:6px 0 10px">
+            Cho phép Terminal chạy lệnh qua quyền shell cao (rish) mà không cần root.
+            Cài app <b>Shizuku</b> → khởi động → chạy <code>rish</code> một lần để cấp quyền,
+            rồi copy file <code>rish</code> vào <code>~/.termux/shizuku/</code>.</p>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span class="mono" id="shz-status" style="font-size:11.5px">${icon('blade/search', 'ic-xs')} đang dò…</span>
+            <span style="flex:1"></span>
+            <button type="button" class="ws-stop" id="shz-toggle" style="width:auto;padding:0 14px;height:36px;font-weight:700;font-size:12.5px">Bật</button>
+          </div>
+        </div>
+
         <!-- (3) About -->
         <div class="card pad" style="margin-top:14px">
           <h3 class="card-title">${icon('solar/book', 'ic-sm')} About</h3>
@@ -239,6 +253,28 @@ export async function render(el) {
         </label>`).join('');
     $('#about-ver').textContent = store.status?.version || '—';
   }
+
+  /* ================= SHIZUKU ================= */
+  let shzOn = false;
+  async function drawShizuku() {
+    const st = await api.shizuku().catch(() => null);
+    const elStatus = $('#shz-status');
+    if (!st || !elStatus) return;
+    shzOn = !!st.enabled;
+    if (st.available) {
+      elStatus.innerHTML = `${icon('blade/check', 'ic-xs')} rish sẵn sàng · <span class="mono">${esc(st.path)}</span>${st.uid ? ' · ' + esc(String(st.uid)).slice(0, 60) : ''}`;
+    } else {
+      elStatus.innerHTML = `${icon('blade/warn', 'ic-xs')} ${esc(st.reason || 'không thấy rish')}`;
+    }
+    $('#shz-toggle').textContent = shzOn ? 'Tắt' : 'Bật';
+  }
+  drawShizuku();
+  $('#shz-toggle')?.addEventListener('click', async () => {
+    const st = await api.shizukuSet(!shzOn).catch(() => null);
+    if (!st) { toast('Lỗi gọi API', 'fail'); return; }
+    toast(st.enabled ? (st.available ? `Shizuku BẬT · ${st.path}` : 'Đã bật nhưng rish chưa có trên máy') : 'Shizuku TẮT', st.enabled && !st.available ? 'warn' : 'ok');
+    drawShizuku();
+  });
 
   // Radio default → PUT ngay (đặt model mặc định)
   $('model-list').addEventListener('change', async (e) => {

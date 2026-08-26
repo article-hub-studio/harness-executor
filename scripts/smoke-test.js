@@ -221,6 +221,40 @@ await check('SSE nhận ít nhất log + env events', async () => {
   return `[${seen.join(', ')}]`;
 });
 
+await check('Terminal: session riêng + folder riêng + safe chạy ngay', async () => {
+  const s = expectOk(await req('POST', '/api/terminal/sessions', { name: 'smoke-term' }), 'create');
+  assert(s.id && s.dir, 'thiếu id/dir');
+  const r1 = expectOk(await req('POST', `/api/terminal/${s.id}/exec`, { command: 'echo smoke-terminal-ok' }), 'safe exec');
+  assert(r1.ran === true && r1.exitCode === 0, `ran=${r1.ran} exit=${r1.exitCode}`);
+  const d = expectOk(await req('GET', `/api/terminal/${s.id}`), 'detail');
+  assert(/smoke-terminal-ok/.test(d.log.map((c) => c.data).join('')), 'không thấy output echo');
+  try { await req('POST', `/api/terminal/${s.id}/exec`, { command: 'rm -rf /' }); assert(false, 'blocked phải ném lỗi'); }
+  catch (e) { assert(/cấm|blocked/i.test(e.message), `lỗi lạ: ${e.message}`); }
+  await req('DELETE', `/api/terminal/${s.id}`);
+  return `${d.dir}`;
+});
+
+await check('Terminal permission: lệnh nguy hiểm phải duyệt/từ chối', async () => {
+  const s = expectOk(await req('POST', '/api/terminal/sessions', { name: 'smoke-perm' }), 'create');
+  const r = await req('POST', `/api/terminal/${s.id}/exec`, { command: 'chmod +x run.sh' });
+  assert(r.json.needsApproval === true && r.json.permId, `không xin permission: ${JSON.stringify(r.json)}`);
+  const list = expectOk(await req('GET', '/api/terminal/sessions'), 'list');
+  assert(list.pending.some((p) => p.id === r.json.permId), 'pending không có trong danh sách');
+  const dn = expectOk(await req('POST', `/api/terminal/perm/${r.json.permId}/deny`), 'deny');
+  assert(dn.ok === true, 'deny fail');
+  await req('DELETE', `/api/terminal/${s.id}`);
+  return `perm ${r.json.permId} → từ chối OK`;
+});
+
+await check('Shizuku status endpoint', async () => {
+  const st = expectOk(await req('GET', '/api/shizuku'), 'status');
+  assert(typeof st.available === 'boolean', 'thiếu available');
+  const set = expectOk(await req('PUT', '/api/shizuku', { enabled: true }), 'set');
+  assert(set.enabled === true, 'set enabled fail');
+  await req('PUT', '/api/shizuku', { enabled: false });
+  return st.available ? `rish: ${st.path}` : 'rish chưa có (bình thường trên Linux)';
+});
+
 // ---- tổng kết ----
 const passed = results.filter((r) => r.ok).length;
 console.log(`\n📊 Kết quả: ${passed}/${results.length} pass`);

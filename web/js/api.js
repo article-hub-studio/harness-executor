@@ -65,6 +65,16 @@ export const api = {
   agent: (id) => get(`/api/agents/${encodeURIComponent(id)}`),
   sayAgent: (id, message) => post(`/api/agents/${encodeURIComponent(id)}/say`, { message }), // multi-turn: agent chạy tiếp
   cancelAgent: (id) => post(`/api/agents/${encodeURIComponent(id)}/cancel`),
+  // Terminal tự động (anyclaw-style): session riêng · folder riêng · permission · shizuku
+  termSessions: () => get('/api/terminal/sessions'),
+  termCreate: (name) => post('/api/terminal/sessions', { name }),
+  term: (sid) => get(`/api/terminal/${encodeURIComponent(sid)}`),
+  termKill: (sid) => fetchJSON(`/api/terminal/${encodeURIComponent(sid)}`, { method: 'DELETE' }).then((r) => r.json),
+  termExec: (sid, command, via = 'local') => post(`/api/terminal/${encodeURIComponent(sid)}/exec`, { command, via }),
+  permApprove: (pid) => post(`/api/terminal/perm/${encodeURIComponent(pid)}/approve`),
+  permDeny: (pid) => post(`/api/terminal/perm/${encodeURIComponent(pid)}/deny`),
+  shizuku: () => get('/api/shizuku'),
+  shizukuSet: (enabled) => put('/api/shizuku', { enabled }),
 };
 
 /* ---------- OpenAI-compatible chat stream (/v1/chat/completions) ----------

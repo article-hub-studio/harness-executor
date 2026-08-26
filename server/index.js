@@ -11,6 +11,7 @@ import { Executor } from './src/executor/executor.js';
 import { EnvBuilder } from './src/envbuilder/envbuilder.js';
 import { ModelHub } from './src/modelhub/modelhub.js';
 import { AgentOrchestrator } from './src/subagents/orchestrator.js';
+import { TerminalHub } from './src/terminal.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -42,6 +43,12 @@ const envBuilder = new EnvBuilder({ dataDir: DATA_DIR, rootDir: ROOT, port: PORT
 const orchestrator = new AgentOrchestrator({ executor, modelHub });
 orchestrator.on('agent-step', (p) => hub.broadcast('agent-step', p));
 orchestrator.on('agent-final', (p) => hub.broadcast('log', { level: 'info', line: `agent ${p.id} hoàn tất` }));
+
+// Terminal Hub — session riêng · folder riêng · permission 3 mức · Shizuku
+const terminalHub = new TerminalHub({
+  rootDir: ROOT,
+  emit: (ev, payload) => hub.broadcast(ev === 'perm' ? 'perm' : 'term', payload),
+});
 
 // ---------- auto-boot: dựng môi trường + tự chạy lệnh + tự connect ----------
 const bootState = {
@@ -183,6 +190,43 @@ route('PUT', '/api/mcps/:id/env', async (ctx) => {
     if (typeof executor.setMcpEnv !== 'function') return fail(ctx.res, 501, 'env chưa khả dụng');
     ok(ctx.res, await Promise.resolve(executor.setMcpEnv(ctx.params.id, body.env)));
   } catch (e) { fail(ctx.res, 400, e.message); }
+});
+
+/* ================= TERMINAL (anyclaw-style autonomy) ================= */
+route('GET', '/api/terminal/sessions', (ctx) =>
+  ok(ctx.res, { items: [...terminalHub.sessions.values()].map((s) => terminalHub.summary(s)), pending: terminalHub.listPending() }));
+route('POST', '/api/terminal/sessions', async (ctx) => {
+  const body = await readBody(ctx.req).catch(() => ({}));
+  ok(ctx.res, terminalHub.createSession(body.name));
+});
+route('GET', '/api/terminal/:sid', (ctx) => {
+  const t = terminalHub.get(ctx.params.sid);
+  if (!t) return fail(ctx.res, 404, 'session không tồn tại');
+  ok(ctx.res, t);
+});
+route('DELETE', '/api/terminal/:sid', (ctx) =>
+  ok(ctx.res, { ok: terminalHub.killSession(ctx.params.sid) }));
+route('POST', '/api/terminal/:sid/exec', async (ctx) => {
+  try {
+    const body = await readBody(ctx.req);
+    if (!body.command || typeof body.command !== 'string') return fail(ctx.res, 400, 'cần {command}');
+    const r = await terminalHub.exec(ctx.params.sid, body.command, { via: body.via === 'shizuku' ? 'shizuku' : 'local' });
+    ok(ctx.res, r);
+  } catch (e) { fail(ctx.res, 409, e.message); }
+});
+route('POST', '/api/terminal/perm/:pid/approve', async (ctx) => {
+  try { ok(ctx.res, await terminalHub.approve(ctx.params.pid)); }
+  catch (e) { fail(ctx.res, 404, e.message); }
+});
+route('POST', '/api/terminal/perm/:pid/deny', (ctx) => {
+  try { ok(ctx.res, terminalHub.deny(ctx.params.pid)); }
+  catch (e) { fail(ctx.res, 404, e.message); }
+});
+route('GET', '/api/shizuku', async (ctx) =>
+  ok(ctx.res, await terminalHub.detectShizuku()));
+route('PUT', '/api/shizuku', async (ctx) => {
+  const body = await readBody(ctx.req).catch(() => ({}));
+  ok(ctx.res, { enabled: terminalHub.setShizukuEnabled(body.enabled), ...(await terminalHub.detectShizuku(true)) });
 });
 route('POST', '/api/mcps/:id/connect', async (ctx) => {
   try {

@@ -54,6 +54,18 @@ npm run build-icons           # tái sinh web/js/icons.js (cần: npm i --no-sav
 - **Android (Chrome)**: menu ⋮ → *Install app* / *Add to Home screen*.
 - Service worker cache static → mở lại được cả khi offline; API vẫn cần server.
 
+## 🤖 Terminal tự động — permission 3 mức + Shizuku
+
+Tab **Term** (kiểu agent tự động như OpenClaw/anyclaw):
+
+- **Terminal riêng** — mỗi session một console độc lập
+- **Folder riêng** — mỗi session có workspace riêng `workspace/terminals/<id>` (lệnh chạy trong đó, `HOME` trỏ vào folder)
+- **Permission 3 mức**:
+  - 🟢 *An toàn* (`ls`, `cat`, `git status`, `node -v`…) → chạy ngay
+  - 🟡 *Nguy hiểm* (`npm install`, `curl`, `chmod`, `rm`, `sudo`, `git push`…) → hiện thẻ phải bấm **Duyệt** trong 60s (hoặc Từ chối), qua SSE realtime
+  - 🔴 *Luôn cấm* (`rm -rf /`, `mkfs`, `dd if=`, fork bomb, shutdown…) → chặn trước khi chạy
+- **Shizuku** (Android/Termux): bật trong Settings hoặc checkbox trong Term → lệnh chạy qua `rish` với quyền shell cao không cần root. Hướng dẫn cài ngay trong Settings → Shizuku.
+
 ## 🖥 Self-host 1 lệnh — không cần máy tính riêng
 
 Chạy thẳng trên **Linux / VPS / macOS / Termux (chính điện thoại Android)**:
