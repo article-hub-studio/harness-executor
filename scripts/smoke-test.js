@@ -281,6 +281,27 @@ await check('Web module graph: mọi import ES module trả 200 (chống chế �
   return `${count} module OK`;
 });
 
+await check('Web JS không dùng global riêng của Node (process/require/__dirname)', async () => {
+  const { readdirSync, readFileSync, statSync } = await import('node:fs');
+  const walk = (d) => readdirSync(d).flatMap((f) => {
+    const p = `${d}/${f}`;
+    return statSync(p).isDirectory() ? walk(p) : (p.endsWith('.js') ? [p] : []);
+  });
+  const { fileURLToPath } = await import('node:url');
+  const files = walk(fileURLToPath(new URL('../web/js', import.meta.url)));
+  const bad = [];
+  for (const f of files) {
+    const src = readFileSync(f, 'utf8');
+    src.split('\n').forEach((ln, i) => {
+      if (/(^|[^.\w'"`])(require\(|__dirname|__filename)/.test(ln)) bad.push(`${f}:${i + 1}`);
+      // process chỉ được dùng khi đã guard typeof
+      if (/(^|[^.\w'"`])process\s*[.[]/.test(ln) && !/typeof process/.test(ln)) bad.push(`${f}:${i + 1} (process chưa guard)`);
+    });
+  }
+  assert(bad.length === 0, `global Node lọt vào code browser → ReferenceError giết module graph:\n    ${bad.join('\n    ')}`);
+  return `${files.length} file sạch`;
+});
+
 // ---- tổng kết ----
 const passed = results.filter((r) => r.ok).length;
 console.log(`\n📊 Kết quả: ${passed}/${results.length} pass`);

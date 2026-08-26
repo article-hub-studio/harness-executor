@@ -205,7 +205,9 @@ export function renderMarkdown(src) {
 }
 
 /* ---------- demo CLI nhỏ ---------- */
-if (import.meta.url === `file://${process.argv[1]}`) {
+// CHỈ chạy khi ở Node (browser không có `process` → phải guard, nếu không ReferenceError
+// giết cả module graph và app rơi vào chế độ tĩnh)
+if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('md.js')) {
   const demo = [
     '# Demo', '',
     'Đoạn **bold**, *italic*, ~~xóa~~, `code`, link [upio](https://upio.dev).', '',
