@@ -171,8 +171,11 @@
 
   function go(base) {
     say('<span class="spin"></span>' + t('connecting').replace('{u}', base.replace(/^https?:\/\//, '')));
-    try { localStorage.setItem(KEY, base); } catch (e) {}
-    setTimeout(function () { location.replace(base); }, 400);
+    try {
+      localStorage.setItem(KEY, base);
+      localStorage.setItem('upio.api', base); // app bundle nội bộ gọi API qua base này
+    } catch (e) {}
+    setTimeout(function () { location.replace('app/index.html'); }, 400);
   }
 
   async function autoConnect() {

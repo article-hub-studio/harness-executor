@@ -43,10 +43,13 @@ jobs:
           echo "code=$CODE" >> "$GITHUB_OUTPUT"
           echo "Phiên bản: v$V (versionCode $CODE)"
 
-      - name: Sync Capacitor (web assets → android)
+      - name: Bundle web app vào APK + Sync Capacitor
         working-directory: mobile
         run: |
           npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+          # Đóng gói app đầy đủ vào www/app — WebView chạy module LOCAL,
+          # chỉ gọi API ra ngoài qua __DSH_API_BASE (không điều hướng chéo origin)
+          rm -rf www/app && cp -r ../web www/app
           npx cap sync android
 
       - name: Chuẩn bị keystore (secrets nếu có, không thì tự sinh ephemeral)
