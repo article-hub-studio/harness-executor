@@ -11,11 +11,13 @@ const state = {
 };
 
 export function render(el) {
+  // KHÔNG bọc bằng <section class="view">: el đã LÀ .view — thẻ .view lồng bên trong
+  // không có .active nên bị `display:none`, làm cả tab Term trắng trơn.
   el.innerHTML = `
-  <section class="view">
-    <header class="hero">
-      <h1 class="hero-brand"><span class="wm">terminal<span class="wm-dot"></span></span><span class="hero-sub" style="margin-top:0">tự động</span></h1>
-      <p class="hero-sub">Session riêng · folder riêng · lệnh nguy hiểm phải duyệt</p>
+  <div class="container">
+    <header class="oc-hero">
+      <div class="oc-wordmark">terminal<span class="wm-dot"></span>auto</div>
+      <div class="oc-statusline"><span class="oc-sl-item">session riêng · folder riêng · lệnh nguy hiểm phải duyệt</span></div>
     </header>
 
     <!-- Permission pending -->
@@ -33,7 +35,7 @@ export function render(el) {
         <span class="mono dim" id="term-dir">${icon('blade/folder', 'ic-sm')} chưa có session</span>
         <span style="display:flex;gap:6px;align-items:center">
           <label class="dim mono" style="font-size:10.5px;display:flex;gap:4px;align-items:center;gap:5px">
-            <input type="checkbox" id="chk-shizuku" style="accent-color:#0a0a0a"> ${icon('blade/bolt', 'ic-xs')} Shizuku
+            <input type="checkbox" id="chk-shizuku" style="accent-color:var(--text)"> ${icon('blade/bolt', 'ic-xs')} Shizuku
           </label>
           <button type="button" class="icon-btn" id="btn-kill" title="Xoá session">${icon('blade/trash', 'ic-sm')}</button>
         </span>
@@ -49,7 +51,7 @@ export function render(el) {
 
     <p class="hint-block dim">An toàn (<i>ls, cat, git status…</i>) chạy ngay · Nguy hiểm (<i>npm install, curl, chmod, rm, sudo…</i>)
     hiện thẻ phải <b>Duyệt</b> trong 60s · Luôn cấm (<i>rm -rf /, mkfs, dd…</i>) chặn trước khi chạy.</p>
-  </section>`;
+  </div>`;
 
   const $ = (s) => el.querySelector(s);
   const consoleEl = $('#console');

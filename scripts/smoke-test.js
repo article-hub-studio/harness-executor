@@ -42,13 +42,14 @@ function listenSse(ms, trigger) {
 
 console.log(`\n🧪 upio MCP Executor Harness — smoke test against ${BASE}\n`);
 
-await check('GET /api/status (counts đúng 106/143)', async () => {
+await check('GET /api/status (registry Luau/LSP — 100% MCP thật)', async () => {
   const j = expectOk(await req('GET', '/api/status'), 'status');
   assert(j.ok === true, 'ok != true');
-  assert(j.counts.mcps === 106, `mcps=${j.counts.mcps} != 106`);
-  assert(j.counts.plugins === 143, `plugins=${j.counts.plugins}`);
-  assert(j.counts.skills >= 40, `skills=${j.counts.skills}`);
-  return `node ${j.env?.node} · realMcps=${j.counts.realMcps}`;
+  assert(j.counts.mcps >= 8, `mcps=${j.counts.mcps} quá ít`);
+  assert(j.counts.realMcps === j.counts.mcps, `còn MCP mô phỏng: real=${j.counts.realMcps}/${j.counts.mcps}`);
+  assert(j.counts.plugins >= 8, `plugins=${j.counts.plugins}`);
+  assert(j.counts.skills >= 10, `skills=${j.counts.skills}`);
+  return `node ${j.env?.node} · ${j.counts.mcps} MCP (100% thật) · ${j.counts.plugins} plugin · ${j.counts.skills} skill`;
 });
 
 let boot;
@@ -62,20 +63,30 @@ await check('Auto-boot: env setup + tự connect MCP', async () => {
   assert(boot && boot.phase === 'ready', `boot phase=${boot?.phase ?? 'no-response'} ${boot?.error ?? ''}`);
   const names = boot.steps.map((s) => s.name);
   assert(names.includes('environment'), 'thiếu step environment');
-  assert(names.includes('connect-mcp'), 'thiếu step connect-mcp');
+  assert(names.includes('autostart-mcp'), 'thiếu step autostart-mcp (tự bật MCP executor)');
+  // autoStart chạy nền: chờ tới khi done rồi mới kiểm số kết nối
+  const dl2 = Date.now() + 90000;
+  let a = boot.autoStart;
+  while (Date.now() < dl2 && (!a || !a.done)) {
+    await new Promise((r2) => setTimeout(r2, 700));
+    a = (await req('GET', '/api/boot')).json?.autoStart;
+  }
+  assert(a && a.done === true, `autoStart chưa xong: ${JSON.stringify(a)}`);
+  assert(a.total >= 1, 'không có MCP nào khai báo autoStart');
+  assert(a.ok >= 1, `không MCP nào tự bật được: ${JSON.stringify(a.failed)}`);
   const st = expectOk(await req('GET', '/api/status'), 'status sau boot');
-  assert(st.connectedMcps >= 95, `connectedMcps=${st.connectedMcps} quá ít`);
-  return `${st.connectedMcps}/98 tự kết nối`;
+  assert(st.connectedMcps >= 1, `connectedMcps=${st.connectedMcps}`);
+  return `tự bật ${a.ok}/${a.total} MCP trong ${a.ms}ms · connected=${st.connectedMcps}`;
 });
 
 let pluginId;
 await check('GET /api/plugins (search + chi tiết)', async () => {
-  const list = expectOk(await req('GET', '/api/plugins?q=guard'), 'plugins');
+  const list = expectOk(await req('GET', '/api/plugins?q=luau'), 'plugins');
   assert(list.total > 0, 'search không ra kết quả');
   pluginId = list.items[0].id;
   const one = expectOk(await req('GET', `/api/plugins/${pluginId}`), 'plugin detail');
   assert(one.id === pluginId, 'id lệch');
-  return `${list.total} kết quả "guard", sample=${pluginId}`;
+  return `${list.total} kết quả "luau", sample=${pluginId}`;
 });
 await check('POST toggle plugin on→off', async () => {
   const on = expectOk(await req('POST', `/api/plugins/${pluginId}/toggle`, { enabled: true }), 'toggle on');
@@ -84,52 +95,91 @@ await check('POST toggle plugin on→off', async () => {
   return pluginId;
 });
 
-await check('GET /api/mcps (106 items + filter category + real)', async () => {
+await check('GET /api/mcps (chỉ MCP thật + có category luau & lsp)', async () => {
   const all = expectOk(await req('GET', '/api/mcps'), 'mcps');
-  assert(all.total === 106, `total=${all.total}`);
-  const fsCat = expectOk(await req('GET', '/api/mcps?category=filesystem'), 'filter');
-  assert(fsCat.total >= 8, 'category filesystem < 8');
-  const realCat = expectOk(await req('GET', '/api/mcps?category=real'), 'filter real');
-  assert(realCat.total === 8, `real=${realCat.total} != 8`);
-  return `106 servers · real=${realCat.total}`;
+  assert(all.total >= 8, `total=${all.total}`);
+  assert(all.items.every((m) => m.real === true), 'còn MCP không phải thật trong danh sách');
+  assert(all.items.every((m) => m.transport === 'stdio'), 'có MCP không dùng stdio');
+  const luau = expectOk(await req('GET', '/api/mcps?category=luau'), 'filter luau');
+  assert(luau.total >= 2, `category luau=${luau.total}`);
+  const lsp = expectOk(await req('GET', '/api/mcps?category=lsp'), 'filter lsp');
+  assert(lsp.total >= 2, `category lsp=${lsp.total}`);
+  const autos = all.items.filter((m) => m.autoStart === true);
+  assert(autos.length >= 1, 'không MCP nào bật autoStart');
+  return `${all.total} server thật · luau=${luau.total} lsp=${lsp.total} · autoStart=${autos.length}`;
 });
 
-let robloxTools = 0;
-await check('REAL MCP: roblox-executor cài sẵn + connect + invoke thật', async () => {
-  const d = expectOk(await req('GET', '/api/mcps/roblox-executor'), 'detail');
+await check('MCP THẬT luau-lsp: type-check code Luau SAI KIỂU phải báo lỗi', async () => {
+  const d = expectOk(await req('GET', '/api/mcps/luau-lsp'), 'detail');
   assert(d.real === true && d.installed === true, `real=${d.real} installed=${d.installed}`);
-  const c = expectOk(await req('POST', '/api/mcps/roblox-executor/connect', {}), 'connect');
-  assert(c.state === 'connected' && c.tools.length >= 15, `tools=${c.tools.length}`);
-  robloxTools = c.tools.length;
-  const inv = expectOk(await req('POST', '/api/invoke', { server: 'roblox-executor', tool: 'list-clients', args: {} }), 'invoke');
-  assert(inv.ok === true, `list-clients lỗi: ${inv.error}`);
-  await req('POST', '/api/mcps/roblox-executor/disconnect', {});
-  return `${robloxTools} tools thật · list-clients OK`;
+  assert(d.state === 'connected', `luau-lsp phải tự bật khi boot, state=${d.state}`);
+  assert(d.toolCount >= 8, `tools thật=${d.toolCount}`);
+  // code sai kiểu → luau-lsp thật phải trả TypeError
+  const bad = expectOk(await req('POST', '/api/invoke', {
+    server: 'luau-lsp', tool: 'luau_check_source',
+    args: { source: '--!strict\nlocal x: number = "chuoi"\nprint(x)\n', filename: 'bad.luau' },
+  }), 'invoke bad');
+  assert(bad.ok === true, `invoke lỗi: ${bad.error}`);
+  assert(/TypeError/.test(String(bad.result)), `không thấy TypeError: ${String(bad.result).slice(0, 160)}`);
+  assert(bad.meta?.mocked === false, 'meta.mocked phải false (server thật)');
+  // code đúng → sạch
+  const good = expectOk(await req('POST', '/api/invoke', {
+    server: 'luau-lsp', tool: 'luau_check_source',
+    args: { source: '--!strict\nlocal function f(a: number): number\n\treturn a + 1\nend\nprint(f(1))\n', filename: 'good.luau' },
+  }), 'invoke good');
+  assert(good.ok === true && !/TypeError/.test(String(good.result)), `code đúng vẫn báo lỗi: ${String(good.result).slice(0, 160)}`);
+  return `${d.toolCount} tool thật · phát hiện TypeError đúng · code sạch pass`;
+});
+
+await check('MCP THẬT lsp-universal: tools/list qua LSP bridge', async () => {
+  const d = expectOk(await req('GET', '/api/mcps/lsp-universal'), 'detail');
+  assert(d.state === 'connected', `state=${d.state} (phải tự bật)`);
+  assert(d.toolCount >= 10, `tools=${d.toolCount}`);
+  const names = (d.tools || []).map((t) => t.name);
+  for (const need of ['lsp_init', 'lsp_diagnostics', 'lsp_references', 'lsp_definition']) {
+    assert(names.includes(need), `thiếu tool ${need}`);
+  }
+  return `${d.toolCount} tool LSP thật`;
 });
 
 let connectedTools = 0;
-await check('connect MCP builtin + invoke tool', async () => {
-  const c = expectOk(await req('POST', '/api/mcps/filesystem-vaultkeeper/connect', {}), 'connect');
-  assert(c.state === 'connected', 'state != connected');
-  connectedTools = c.tools.length;
-  assert(connectedTools >= 3, 'tools quá ít');
-  const inv = expectOk(await req('POST', '/api/invoke', { server: 'filesystem-vaultkeeper', tool: 'fs.list_dir', args: { path: '/' } }), 'invoke');
-  assert(inv.ok === true, `invoke lỗi: ${inv.error}`);
-  await req('POST', '/api/mcps/filesystem-vaultkeeper/disconnect', {});
-  return `fs.list_dir OK (${connectedTools} tools)`;
+await check('MCP THẬT mcp-filesystem: connect + đọc thư mục workspace', async () => {
+  const d = expectOk(await req('GET', '/api/mcps/mcp-filesystem'), 'detail');
+  assert(d.state === 'connected', `state=${d.state} (phải tự bật)`);
+  connectedTools = d.toolCount;
+  assert(connectedTools >= 5, `tools=${connectedTools}`);
+  // root cho phép do server tự khai báo → hỏi nó rồi mới liệt kê (không đoán đường dẫn)
+  const roots = expectOk(await req('POST', '/api/invoke', { server: 'mcp-filesystem', tool: 'list_allowed_directories', args: {} }), 'roots');
+  assert(roots.ok === true, `list_allowed_directories lỗi: ${roots.error}`);
+  const root = String(roots.result).split('\n').filter((l) => l.startsWith('/'))[0];
+  assert(root, `không parse được root từ: ${String(roots.result).slice(0, 120)}`);
+  const inv = expectOk(await req('POST', '/api/invoke', { server: 'mcp-filesystem', tool: 'list_directory', args: { path: root } }), 'invoke');
+  assert(inv.ok === true, `list_directory lỗi: ${inv.error}`);
+  return `list_directory ${root} OK (${connectedTools} tools thật)`;
 });
 
 await check('GET /api/skills', async () => {
   const s = expectOk(await req('GET', '/api/skills'), 'skills');
-  assert(s.total >= 40, `skills=${s.total}`);
-  return `${s.total} skills`;
+  assert(s.total >= 10, `skills=${s.total}`);
+  const ids = s.items.map((x) => x.id);
+  for (const need of ['luau-type-audit', 'luau-snippet-review', 'lsp-workspace-health']) {
+    assert(ids.includes(need), `thiếu skill ${need}`);
+  }
+  return `${s.total} skill Luau/LSP`;
 });
 let runId;
-await check('POST chạy skill repo-summarize', async () => {
-  const r = expectOk(await req('POST', '/api/skills/repo-summarize/run', { input: { repo: 'upio/mcp-executor' } }), 'run');
+await check('POST chạy skill luau-snippet-review (tool THẬT trong pipeline)', async () => {
+  const r = expectOk(await req('POST', '/api/skills/luau-snippet-review/run', {
+    input: { source: '--!strict\nlocal y: string = 42\nprint(y)\n' },
+  }), 'run');
   runId = r.runId;
   assert(typeof runId === 'string' && runId.startsWith('run-'), `runId=${runId}`);
-  return runId;
+  // chờ skill gọi luau-lsp thật rồi kiểm audit log
+  await new Promise((r2) => setTimeout(r2, 4000));
+  const au = expectOk(await req('GET', '/api/audit?tail=25'), 'audit');
+  const hit = (au.items || []).find((x) => x.server === 'luau-lsp' && x.tool === 'luau_check_source' && x.ok === true);
+  assert(hit, 'skill không gọi được luau_check_source thật');
+  return `${runId} · luau-lsp được gọi thật trong skill`;
 });
 
 await check('GET /api/env scan', async () => {
@@ -197,23 +247,22 @@ await check('Agent AI Workspace: nhắn tiếp agent (multi-turn)', async () => 
   return `session ${a.session.length} entry · followUps=${a.followUps}`;
 });
 
-await check('Plugin behavior thật: validate-required chặn invoke', async () => {
-  const dev = expectOk(await req('GET', '/api/plugins?category=devtools'), 'devtools');
-  const p = dev.items.find((x) => x.behavior === 'validate-required');
+await check('Plugin behavior thật: validate-required chặn invoke luau-lsp', async () => {
+  const all = expectOk(await req('GET', '/api/plugins'), 'plugins');
+  const p = all.items.find((x) => x.behavior === 'validate-required');
   assert(p, 'không có plugin validate-required');
   await req('POST', `/api/plugins/${p.id}/toggle`, { enabled: true });
-  await expectOk(await req('POST', '/api/mcps/filesystem-vaultkeeper/connect', {}), 'connect cho plugin test');
-  const inv = await req('POST', '/api/invoke', { server: 'filesystem-vaultkeeper', tool: 'fs.list_dir', args: {} });
-  await req('POST', '/api/mcps/filesystem-vaultkeeper/disconnect', {});
+  // thiếu arg 'source' bắt buộc → plugin phải chặn TRƯỚC khi tới luau-lsp
+  const inv = await req('POST', '/api/invoke', { server: 'luau-lsp', tool: 'luau_check_source', args: {} });
   await req('POST', `/api/plugins/${p.id}/toggle`, { enabled: false });
   assert(inv.json && inv.json.ok === false, 'plugin không chặn được');
   assert(/validate-required/.test(String(inv.json.error)), `error lạ: ${inv.json.error}`);
-  return p.id;
+  return `${p.id} chặn luau_check_source thiếu source`;
 });
 
 await check('SSE nhận ít nhất log + env events', async () => {
   const seen = await listenSse(6000, async () => {
-    await fetch(BASE + '/api/invoke', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ server: 'filesystem-vaultkeeper', tool: 'fs.get_info', args: { path: '/tmp' }, force: true }) }).catch(() => {});
+    await fetch(BASE + '/api/invoke', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ server: 'luau-lsp', tool: 'luau_version', args: {}, force: true }) }).catch(() => {});
     await fetch(BASE + '/api/env/build', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }).catch(() => {});
   });
   assert(seen.includes('log'), `chỉ thấy: ${seen.join(',')}`);
@@ -342,7 +391,6 @@ await check('Web UI toàn vẹn: icon 99 key sạch, biến CSS tồn tại, id 
     }
   }
 
-  assert(problems.length === 0, `UI có lỗi tiềm ẩn:\n    ${problems.join('\n    ')}`);
   // 4) tab bar: số cột CSS phải khớp số tab thật trong index.html (bug lệch nav)
   const html = readFileSync(`${root}/index.html`, 'utf8');
   const nTabs = (html.match(/class="tab-btn/g) || []).length;
@@ -350,9 +398,103 @@ await check('Web UI toàn vẹn: icon 99 key sạch, biến CSS tồn tại, id 
   if (gridDecl && Number(gridDecl[1]) !== nTabs) {
     problems.push(`tab-bar chia ${gridDecl[1]} cột nhưng có ${nTabs} tab → nav lệch`);
   }
-  assert(nTabs >= 5, `chỉ thấy ${nTabs} tab trong index.html`);
 
-  return `${nIcons} icon · ${declared.size} CSS var · ${nTabs} tab khớp · id khớp`;
+  // 4b) view KHÔNG được tự bọc thêm .view bên trong: el truyền vào render() đã LÀ .view,
+  //     thẻ .view lồng trong không có .active → display:none → cả tab trắng trơn.
+  for (const f of walk(`${root}/js/views`)) {
+    const src = readFileSync(f, 'utf8');
+    const code = src.split('\n').filter((ln) => !/^\s*(\/\/|\*|\/\*)/.test(ln)).join('\n');
+    if (/class="view[\s"]/.test(code)) problems.push(`${f.replace(root, 'web')}: tự bọc class="view" → tab bị display:none`);
+  }
+
+  // 5) MỌI route trong ROUTES của app.js phải có <section id="view-*"> + data-route tương ứng.
+  //    Thiếu container → navigate() return im lặng, tab bấm vào không hiện gì.
+  const appSrc = readFileSync(`${root}/js/app.js`, 'utf8');
+  const routesBlock = appSrc.match(/const ROUTES = \{([\s\S]*?)\};/);
+  assert(routesBlock, 'không tìm thấy const ROUTES trong app.js');
+  const routeKeys = [...routesBlock[1].matchAll(/^\s*(\w+):/gm)].map((m) => m[1]);
+  assert(routeKeys.length >= 5, `chỉ parse được ${routeKeys.length} route`);
+  const containers = new Set([...html.matchAll(/id="view-([\w-]+)"/g)].map((m) => m[1]));
+  const navRoutes = new Set([...html.matchAll(/data-route="([\w-]+)"/g)].map((m) => m[1]));
+  for (const k of routeKeys) {
+    if (!containers.has(k)) problems.push(`route "${k}" thiếu <section id="view-${k}"> → tab chết`);
+    if (!navRoutes.has(k)) problems.push(`route "${k}" thiếu nút data-route="${k}" trong tab bar`);
+  }
+  for (const c of containers) {
+    if (!routeKeys.includes(c)) problems.push(`view-${c} không có route tương ứng trong ROUTES`);
+  }
+
+  assert(problems.length === 0, `UI có lỗi tiềm ẩn:\n    ${problems.join('\n    ')}`);
+  return `${nIcons} icon · ${declared.size} CSS var · ${nTabs} tab · ${routeKeys.length} route khớp container`;
+});
+
+await check('GUI OpenCode: token màu + layout part đã áp dụng', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { fileURLToPath } = await import('node:url');
+  const root = fileURLToPath(new URL('../web', import.meta.url));
+  const css = readFileSync(`${root}/css/app.css`, 'utf8');
+  const problems = [];
+  // bảng màu warm-neutral của OpenCode (hsl), không còn #ffffff/#0a0a0a cứng
+  if (!/--bg:\s*hsl\(0,\s*20%,\s*99%\)/.test(css)) problems.push('thiếu --bg light hsl(0,20%,99%) của OpenCode');
+  if (!/--bg:\s*hsl\(0,\s*9%,\s*7%\)/.test(css)) problems.push('thiếu --bg dark hsl(0,9%,7%) của OpenCode');
+  if (!/--hi:\s*hsl\(62,/.test(css)) problems.push('thiếu accent --hi vàng-chanh hsl(62,…)');
+  // góc 4px thay vì bo tròn 10px kiểu cũ
+  if (!/--r-md:\s*4px/.test(css)) problems.push('--r-md phải là 4px (0.25rem) theo OpenCode');
+  // layout part + tool block
+  for (const need of ['.part-rail', '.part-mark', '.part-bar', '.part-text', '.tool-block', '.tool-head', '.tool-args', '.oc-panel', '.oc-stream', '.oc-wordmark']) {
+    if (!css.includes(need)) problems.push(`thiếu class ${need}`);
+  }
+  const chatSrc = readFileSync(`${root}/js/views/chat.js`, 'utf8');
+  if (/addBubble\(/.test(chatSrc)) problems.push('chat.js còn dùng bubble cũ (addBubble)');
+  if (!/addPart\(/.test(chatSrc)) problems.push('chat.js chưa dùng addPart() kiểu OpenCode');
+  const homeSrc = readFileSync(`${root}/js/views/home.js`, 'utf8');
+  if (/stat-grid/.test(homeSrc)) problems.push('home.js còn stat-grid kiểu dashboard cũ');
+  if (!/oc-panel/.test(homeSrc)) problems.push('home.js chưa dùng oc-panel');
+  // không được sót số registry hard-code cũ
+  for (const f of ['js/views/settings.js', 'js/views/home.js']) {
+    const src = readFileSync(`${root}/${f}`, 'utf8');
+    for (const n of ['98', '143', '41', '106']) {
+      if (new RegExp(`'${n}'`).test(src)) problems.push(`${f}: còn hard-code số registry cũ '${n}'`);
+    }
+  }
+  assert(problems.length === 0, `GUI chưa đúng chuẩn OpenCode:\n    ${problems.join('\n    ')}`);
+  return 'token màu + part layout + tool block + panel OK';
+});
+
+await check('Watchdog index.html không bật banner offline oan cho app đang sống', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { fileURLToPath } = await import('node:url');
+  const root = fileURLToPath(new URL('../web', import.meta.url));
+  const html = readFileSync(`${root}/index.html`, 'utf8');
+  const appjs = readFileSync(`${root}/js/app.js`, 'utf8');
+  // app.js phải đặt cờ Ở TOP-LEVEL (không nằm trong init()) vì init() mất >1.5s.
+  const beforeInit = appjs.split('async function init()')[0];
+  assert(/window\.__UPIO_MODULES\s*=\s*true/.test(beforeInit),
+    'app.js chưa đặt window.__UPIO_MODULES = true ở top-level');
+  // cả 3 nhánh watchdog/retry đều phải kiểm tra cờ đó
+  const guards = html.match(/__UPIO_MODULES/g) || [];
+  assert(guards.length >= 3, `index.html chỉ có ${guards.length} guard __UPIO_MODULES (cần >= 3)`);
+  assert(!/if \(window\.__UPIO_BOOTED\) return;/.test(html),
+    'index.html còn nhánh chỉ kiểm tra __UPIO_BOOTED → banner offline hiện oan');
+  return `cờ top-level + ${guards.length} guard`;
+});
+
+await check('Không emoji trong chrome UI: mọi icon registry là key ICONS thật', async () => {
+  const { fileURLToPath } = await import('node:url');
+  const { ICONS } = await import(fileURLToPath(new URL('../web/js/icons.js', import.meta.url)));
+  const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/u;
+  const bad = [];
+  let n = 0;
+  for (const [ep, label] of [['/api/mcps', 'mcp'], ['/api/plugins', 'plugin'], ['/api/skills', 'skill']]) {
+    const d = expectOk(await req('GET', ep), ep);
+    for (const it of d.items) {
+      n++;
+      if (EMOJI.test(String(it.icon ?? ''))) bad.push(`${label} ${it.id}: icon emoji "${it.icon}"`);
+      else if (!ICONS[it.icon]) bad.push(`${label} ${it.id}: icon "${it.icon}" không có trong ICONS`);
+    }
+  }
+  assert(bad.length === 0, `icon sai:\n    ${bad.join('\n    ')}`);
+  return `${n} item · 100% icon SVG hợp lệ`;
 });
 
 // ---- tổng kết ----

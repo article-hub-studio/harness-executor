@@ -119,7 +119,11 @@ jobs:
             - App load UI mới nhất trực tiếp từ server — cập nhật tính năng không cần cài lại APK
 
             ### Ghi chú ký APK
-            Keystore release chính thức: đặt repo secrets `ANDROID_KEYSTORE_B64`, `ANDROID_STORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`.
-            Nếu chưa đặt, bản này dùng keystore ephemeral (phải gỡ bản cũ trước khi cài bản mới).
+            Bản này được ký bằng **keystore release cố định** của repo (secrets `ANDROID_KEYSTORE_B64`,
+            `ANDROID_STORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` đã cấu hình).
+            Từ v1.2.0 trở đi mọi bản dùng chung chữ ký nên **cập nhật đè trực tiếp, không cần gỡ app**.
+
+            > Nếu bạn đang dùng bản **≤ v1.1.8** (ký bằng key ephemeral cũ): phải **gỡ app một lần** rồi cài lại,
+            > vì Android từ chối cập nhật khi chữ ký khác nhau.
           files: ${{ env.APK_PATH }}
           fail_on_unmatched_files: true

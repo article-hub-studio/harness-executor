@@ -142,7 +142,7 @@ export async function chatCompletion({ model, messages, onDelta, signal }) {
 }
 
 /* ---------- SSE /api/events (tự reconnect 3s) ---------- */
-const EVT_TYPES = ['log', 'skill-run', 'env', 'agent-step', 'mcp', 'plugin', 'boot'];
+const EVT_TYPES = ['log', 'skill-run', 'env', 'agent-step', 'mcp', 'plugin', 'boot', 'term', 'perm'];
 
 /**
  * Kết nối EventSource tới /api/events.

@@ -1,4 +1,4 @@
-// mcp-client.js — transport factories cho MCP (builtin/stdio/http). Xem docs/SPEC.md §5.2
+// mcp-client.js — transport factories cho MCP THẬT (stdio/http). Xem docs/SPEC.md §5.2
 import { spawn } from 'node:child_process';
 
 /** @typedef {import('../types.js').ToolResult} ToolResult */
@@ -65,59 +65,6 @@ function extractMcpCall(res) {
     } catch { /* không parse được → giữ string */ }
   }
   return { ok: true, result: out };
-}
-
-// ---------------------------------------------------------------- builtin
-
-let _builtinModPromise = null;
-/** Lazy-load builtin-servers (agent SA-builtin có thể đang viết song song file này). */
-async function loadBuiltinModule() {
-  if (!_builtinModPromise) _builtinModPromise = import('./builtin-servers/index.js');
-  try { return await _builtinModPromise; } catch (e) {
-    _builtinModPromise = null; // cho phép retry ở lần sau (vd file vừa được viết xong)
-    throw e;
-  }
-}
-
-/**
- * Transport nội bộ qua builtin-servers.
- * @param {string} serverId @returns {{kind:'builtin',listTools():Promise<McpTool[]>,call(tool:string,args:object,ctx?:object):Promise<ToolResult>,close():Promise<void>}}
- */
-export function createBuiltinTransport(serverId) {
-  const base = { server: serverId, tool: '*', mocked: true };
-  const getServer = async () => {
-    const mod = await loadBuiltinModule();
-    return mod.getServer(serverId);
-  };
-  return {
-    kind: 'builtin',
-    async listTools() {
-      try {
-        const srv = await getServer();
-        return Array.isArray(srv?.tools) ? srv.tools : [];
-      } catch { return []; }
-    },
-    /**
-     * @param {string} tool @param {object} args @param {object} [ctx]
-     * @returns {Promise<ToolResult>}
-     */
-    async call(tool, args = {}, ctx = {}) {
-      const t0 = Date.now();
-      let srv;
-      try { srv = await getServer(); } catch (e) {
-        return errResult({ ...base, tool }, t0, `builtin-servers unavailable: ${e?.message ?? e}`);
-      }
-      if (!srv || typeof srv.call !== 'function') {
-        return errResult({ ...base, tool }, t0, `builtin server '${serverId}' không khả dụng`);
-      }
-      try {
-        return toToolResult(await srv.call(tool, args, ctx), { ...base, tool }, t0);
-      } catch (e) {
-        return errResult({ ...base, tool }, t0, e?.message ?? e);
-      }
-    },
-    async close() { /* builtin không cần dọn tài nguyên */ },
-  };
 }
 
 // ---------------------------------------------------------------- stdio
@@ -399,5 +346,5 @@ export function createHttpTransport({ url, headers = {} }) {
 }
 
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop())) {
-  console.log('mcp-client.js demo — createBuiltinTransport/createStdioTransport/createHttpTransport');
+  console.log('mcp-client.js demo — createStdioTransport/createHttpTransport (chỉ MCP thật)');
 }

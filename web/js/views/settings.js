@@ -13,9 +13,9 @@ import { getLang, setLang } from '../i18n.js';
 export async function render(el) {
   el.innerHTML = `
   <div class="container">
-    <header class="hero">
-      <h1 class="hero-brand">${icon('solar/settings', 'ic-lg')} Settings</h1>
-      <p class="hero-sub">Environment · Models · Theme · Language · Shizuku · About</p>
+    <header class="oc-hero">
+      <div class="oc-wordmark">settings</div>
+      <div class="oc-statusline"><span class="oc-sl-item">environment · models · theme · language · shizuku</span></div>
     </header>
 
     <div class="settings-grid">
@@ -31,7 +31,7 @@ export async function render(el) {
           </div>
           <label class="check-row"><input type="checkbox" id="env-repair"><span>Repair mode (sửa cả cấu hình thiếu)</span></label>
           <div id="env-log-wrap" class="hidden" style="margin-top:10px">
-            <h4 class="sec-title" style="margin-top:4px">Build log <span class="live-dot"></span></h4>
+            <h4 class="oc-sec" style="margin-top:4px">Build log <span class="live-dot"></span></h4>
             <div class="console" id="env-console"></div>
           </div>
         </div>
@@ -62,7 +62,7 @@ export async function render(el) {
           <h3 class="card-title">${icon('solar/cpu', 'ic-sm')} Models</h3>
           <div id="model-list" class="stagger"><div class="skel skel-line" style="width:100%"></div></div>
 
-          <h4 class="sec-title">Provider OpenAI-compatible</h4>
+          <h4 class="oc-sec">Provider OpenAI-compatible</h4>
           <form id="provider-form">
             <div class="field"><label>ID *</label>
               <input class="input mono" name="id" required placeholder="my-openai" autocomplete="off">
@@ -115,7 +115,7 @@ export async function render(el) {
           <div class="about-list stagger">
             <div><span class="k">Version</span><b id="about-ver">—</b></div>
             <div><span class="k">Stack</span><span>Vanilla ES modules · CSS thuần · zero-dependency Node</span></div>
-            <div><span class="k">Registry</span><span>${esc(String(store.counts.mcps || '98'))} MCPs · ${esc(String(store.counts.plugins || '143'))} plugins · ${esc(String(store.counts.skills || '41'))} skills</span></div>
+            <div><span class="k">Registry</span><span id="about-reg">—</span></div>
             <div><span class="k">Credit</span><span>© upio labs<span class="wm-dot" style="margin-left:2px"></span></span></div>
             <div><span class="k">Repo</span><a href="https://github.com/article-hub-studio/harness-executor" target="_blank" rel="noopener noreferrer">github.com/article-hub-studio/harness-executor ${icon('blade/external', 'ic-xs')}</a></div>
           </div>
@@ -270,6 +270,11 @@ export async function render(el) {
           <span class="badge mini ${m.available ? 'connected' : 'disconnected'}">${m.available ? 'available' : 'unavailable'}</span>
         </label>`).join('');
     $('#about-ver').textContent = store.status?.version || '—';
+    // Registry: luôn lấy số THẬT từ /api/status, không hard-code
+    const c = store.status?.counts;
+    $('#about-reg').textContent = c
+      ? `${c.mcps} MCP (${c.realMcps === c.mcps ? '100% thật' : `${c.realMcps} thật`}) · ${c.plugins} plugin · ${c.skills} skill`
+      : '—';
   }
 
   /* ================= SHIZUKU ================= */

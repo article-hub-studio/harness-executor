@@ -1,10 +1,10 @@
 /* ============================================================
-   upio web — view Chat: full-height giữa tab bar và header,
-   bubbles user/assistant, stream typewriter qua /v1/chat/completions,
-   history client-side, New chat, Enter gửi / Shift+Enter xuống dòng.
-   Assistant bubble render MARKDOWN (md.js): cộng dồn raw text,
-   re-render throttle ~120ms + con trỏ nháy cuối; kết thúc render
-   lần cuối không cursor. User bubble giữ esc()/textContent thuần.
+   upio web — view Chat theo phong cách OpenCode WebUI:
+   dòng thời gian "part" thay vì bubble chat — mỗi part có rail bên
+   trái (mốc + vạch dọc nối), nhãn vai trò dạng monospace in hoa,
+   nội dung là khối phẳng viền 1px. Tool-call render riêng thành
+   khối có header + body mono.
+   Stream qua /v1/chat/completions, markdown re-render throttle ~120ms.
    ============================================================ */
 import { chatCompletion, esc, listen, store, icon, toast } from '../app.js';
 import { renderMarkdown } from '../md.js';
@@ -48,19 +48,36 @@ export async function render(el) {
     const models = store.models.length ? store.models : [{ id: 'ox-local-mock' }];
     const def = store.modelConfig.default || 'ox-local-mock';
     sel.innerHTML = models.map((m) => `<option value="${esc(m.id)}">${esc(m.label || m.id)}</option>`).join('');
-    if (models.some((m) => m.id === def)) sel.value = def;
+    if (models.some((m) => m.id === def) && sel.value !== def) sel.value = def;
   }
 
   // Làm mới model list khi status/models thay đổi
   const offModels = listen('models', () => fillModels());
 
-  /* ----- Bubble helpers (user = textContent thuần; assistant = markdown) ----- */
-  function addBubble(role) {
+  /* ----- Part helpers (OpenCode: rail + khối phẳng, không bubble) ----- */
+
+  /**
+   * Tạo một part mới trong dòng thời gian.
+   * @param {'user'|'assistant'|'tool'} role
+   * @param {string} label nhãn mono in hoa bên trên nội dung
+   * @returns {HTMLElement} phần tử .part-body để nhét nội dung
+   */
+  function addPart(role, label) {
     emptyHint.classList.add('hidden');
-    const div = document.createElement('div');
-    div.className = `msg ${role}`;
-    inner.appendChild(div);
-    return div;
+    const part = document.createElement('div');
+    part.className = 'part';
+    part.dataset.role = role;
+    part.innerHTML =
+      '<div class="part-rail"><span class="part-mark"></span><span class="part-bar"></span></div>' +
+      `<div class="part-body"><div class="part-label">${label}</div></div>`;
+    inner.appendChild(part);
+    return part.querySelector('.part-body');
+  }
+
+  /** Nhãn vai trò: USER · ASSISTANT + tên model · TOOL. */
+  function roleLabel(role, extra) {
+    const name = role === 'user' ? 'User' : role === 'tool' ? 'Tool' : 'Assistant';
+    return `${esc(name)}${extra ? `<span class="pl-model">${esc(extra)}</span>` : ''}`;
   }
 
   function nearBottom() {
@@ -98,14 +115,21 @@ export async function render(el) {
     updateSendState();
 
     messages.push({ role: 'user', content: text });
-    addBubble('user').textContent = text; // user bubble: plain text an toàn
+    const userBody = addPart('user', roleLabel('user'));
+    const userText = document.createElement('div');
+    userText.className = 'part-text';
+    userText.textContent = text; // user: plain text an toàn
+    userBody.appendChild(userText);
     stick(true);
 
     busy = true;
     updateSendState();
 
-    const bubble = addBubble('assistant');
-    bubble.classList.add('md');
+    const model = $('chat-model').value;
+    const body = addPart('assistant', roleLabel('assistant', model));
+    const bubble = document.createElement('div');
+    bubble.className = 'part-text md';
+    body.appendChild(bubble);
 
     // Con trỏ nháy — được nhét vào cuối phần tử chứa text mới nhất mỗi lần paint
     const cursor = document.createElement('span');
@@ -127,7 +151,7 @@ export async function render(el) {
 
     try {
       const content = await chatCompletion({
-        model: $('chat-model').value,
+        model,
         messages: [...messages], // chưa gồm assistant placeholder
         onDelta: (delta) => {
           raw += delta;
@@ -146,7 +170,7 @@ export async function render(el) {
       messages.push({ role: 'assistant', content: raw });
     } catch (err) {
       if (!(err && err.name === 'AbortError')) {
-        bubble.classList.add('error'); // bubble lỗi: markdown đã có + dòng lỗi plain
+        bubble.classList.add('error'); // khối lỗi: markdown đã có + dòng lỗi plain
         bubble.innerHTML = renderMarkdown(raw) +
           `<p class="err-line">Lỗi: ${esc(err.message)}</p>`;
       }
@@ -164,11 +188,43 @@ export async function render(el) {
     send();
   });
 
+  /* ----- Tool-call trong dòng thời gian: SSE 'mcp' → part kiểu OpenCode ----- */
+  const offMcp = listen('mcp', (evt) => {
+    // chỉ hiện khi có tool thật được gọi (invoke), không hiện mỗi lần connect/disconnect
+    if (!evt || !evt.tool) return;
+    const body = addPart('tool', roleLabel('tool'));
+    const okMark = evt.ok === false ? 'blade/error' : 'blade/check';
+    const block = document.createElement('div');
+    block.className = 'tool-block';
+
+    // args dạng lưới 3 cột (gạch nối · khoá · giá trị) như tool-args của OpenCode
+    const args = evt.args && typeof evt.args === 'object' ? evt.args : null;
+    const argRows = args
+      ? Object.entries(args).slice(0, 8).map(([k, v]) => {
+        const val = typeof v === 'string' ? v : JSON.stringify(v);
+        return '<span class="ta-dash"></span>'
+          + `<span class="ta-k">${esc(k)}</span>`
+          + `<span class="ta-v">${esc(String(val ?? '').replace(/\s+/g, ' ')).slice(0, 160)}</span>`;
+      }).join('')
+      : '';
+
+    const out = String(evt.detail ?? evt.error ?? evt.result ?? '').trim();
+    block.innerHTML =
+      `<div class="tool-head">${icon(okMark, 'ic-xs')}<span class="th-name">${esc(evt.tool)}</span>`
+      + `<span class="th-srv">${esc(evt.id ?? evt.server ?? '')}</span>`
+      + (Number.isFinite(evt.durationMs) ? `<span class="th-ms">${esc(String(evt.durationMs))}ms</span>` : '')
+      + '</div>'
+      + (argRows ? `<div class="tool-args">${argRows}</div>` : '')
+      + `<div class="tool-body">${esc(out || '(không có output)').slice(0, 4000)}</div>`;
+    body.appendChild(block);
+    stick();
+  });
+
   /* ----- New chat ----- */
   $('chat-new').addEventListener('click', () => {
     if (busy) { toast('Đang stream — đợi xong rồi new chat nhé', 'warn'); return; }
     messages = [];
-    inner.querySelectorAll('.msg').forEach((m) => m.remove());
+    inner.querySelectorAll('.part').forEach((m) => m.remove());
     emptyHint.classList.remove('hidden');
     input.focus();
   });
@@ -181,5 +237,6 @@ export async function render(el) {
 
   return () => {
     offModels();
+    offMcp();
   };
 }

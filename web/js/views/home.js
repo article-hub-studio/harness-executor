@@ -1,91 +1,143 @@
 /* ============================================================
-   upio web — view Home: hero wordmark, stat cards (icon hoá),
-   quick actions, activity feed realtime (SSE 'log').
+   upio web — view Home theo phong cách OpenCode WebUI:
+   wordmark mono + status line, khối "MCP executor" (danh sách server
+   thật + trạng thái tự bật), quick actions, activity stream dạng
+   dòng mono có rail — thay cho stat card kiểu dashboard.
    ============================================================ */
-import { api, listen, esc, toast, openSheet, store, fmtDur, fmtClock, fmtNum, icon, countUp } from '../app.js';
+import { api, listen, esc, toast, openSheet, store, fmtDur, fmtClock, icon } from '../app.js';
 import { openSkillSheet } from './hub.js';
 
 export async function render(el) {
   el.innerHTML = `
   <div class="container">
-    <header class="hero">
-      <h1 class="hero-brand"><span class="wm">harness<span class="wm-dot"></span></span><span class="hero-sub" style="margin-top:0">executor</span></h1>
-      <p class="hero-sub">Mobile control plane cho MCP servers · plugins · skills · agents</p>
+    <header class="oc-hero">
+      <div class="oc-wordmark">harness<span class="wm-dot"></span>executor</div>
+      <div class="oc-statusline" id="oc-status">
+        <span class="oc-sl-item" id="sl-boot"><span class="ring"></span> đang khởi động</span>
+        <span class="oc-sl-sep">·</span>
+        <span class="oc-sl-item" id="sl-mcp">— MCP</span>
+        <span class="oc-sl-sep">·</span>
+        <span class="oc-sl-item" id="sl-up">—</span>
+        <span class="oc-sl-sep">·</span>
+        <span class="oc-sl-item dim" id="sl-node"></span>
+      </div>
     </header>
 
-    <!-- Stat grid -->
-    <section class="stat-grid" aria-label="Thống kê">
-      <div class="card stat"><div class="stat-label">${icon('blade/clock', 'ic-xs')}Uptime</div><div class="stat-value" id="st-uptime">—</div><div class="stat-sub" id="st-env"></div></div>
-      <div class="card stat"><div class="stat-label">${icon('solar/puzzle', 'ic-xs')}Plugins</div><div class="stat-value" id="st-plugins">—</div><div class="stat-sub"></div></div>
-      <div class="card stat hl"><div class="stat-label">${icon('solar/server', 'ic-xs')}MCPs</div><div class="stat-value" id="st-mcps">—</div><div class="stat-sub" id="st-connected">&nbsp;</div><div class="stat-sub dim" id="st-mcp-cap" hidden></div></div>
-      <div class="card stat"><div class="stat-label">${icon('solar/book', 'ic-xs')}Skills</div><div class="stat-value" id="st-skills">—</div><div class="stat-sub"></div></div>
+    <!-- MCP executor: khối chính, tự bật khi mở app -->
+    <h2 class="oc-sec">MCP executor <span class="live-dot" title="realtime qua SSE"></span></h2>
+    <section class="oc-panel" id="mcp-panel">
+      <div class="oc-panel-head">
+        <span class="oph-name">servers</span>
+        <span class="oph-right" id="mcp-sum">—</span>
+      </div>
+      <div class="oc-rows" id="mcp-rows">
+        <div class="oc-row skel-row-oc"><span class="skel skel-line" style="width:40%"></span></div>
+        <div class="oc-row skel-row-oc"><span class="skel skel-line" style="width:55%"></span></div>
+        <div class="oc-row skel-row-oc"><span class="skel skel-line" style="width:32%"></span></div>
+      </div>
+    </section>
+
+    <!-- Registry counts dạng dòng mono, không phải card to -->
+    <section class="oc-panel" style="margin-top:12px">
+      <div class="oc-panel-head"><span class="oph-name">registry</span><span class="oph-right">luau · lsp</span></div>
+      <div class="oc-kv" id="reg-kv">
+        <span class="ta-dash"></span><span class="ta-k">mcps</span><span class="ta-v" id="kv-mcps">—</span>
+        <span class="ta-dash"></span><span class="ta-k">plugins</span><span class="ta-v" id="kv-plugins">—</span>
+        <span class="ta-dash"></span><span class="ta-k">skills</span><span class="ta-v" id="kv-skills">—</span>
+      </div>
     </section>
 
     <!-- Quick actions -->
-    <h2 class="sec-title">Quick actions</h2>
+    <h2 class="oc-sec">Quick actions</h2>
     <section class="qa-row">
-      <button type="button" class="btn primary" id="qa-build">${icon('blade/build', 'ic-sm')} Build Environment</button>
-      <button type="button" class="btn ghost" id="qa-skill">${icon('blade/sparkles', 'ic-sm')} Run skill gợi ý</button>
+      <button type="button" class="btn primary" id="qa-skill">${icon('blade/sparkles', 'ic-sm')} Chạy skill Luau/LSP</button>
+      <button type="button" class="btn ghost" id="qa-build">${icon('blade/build', 'ic-sm')} Build Environment</button>
     </section>
 
-    <!-- Activity feed -->
-    <h2 class="sec-title">Activity <span class="live-dot" title="realtime qua SSE"></span></h2>
-    <section class="card feed-card">
-      <ul class="feed" id="feed"></ul>
+    <!-- Activity stream: dòng mono, mới nhất trên cùng -->
+    <h2 class="oc-sec">Activity</h2>
+    <section class="oc-panel">
+      <div class="oc-panel-head"><span class="oph-name">stream</span><span class="oph-right" id="feed-n">0</span></div>
+      <ul class="oc-stream" id="feed"></ul>
       <div class="empty" id="feed-empty">
         <div class="empty-ico">${icon('solar/activity', 'ic-lg')}</div>
         <p><b>Chưa có hoạt động nào</b></p>
-        <p class="dim">Feed sẽ chạy realtime khi nhận SSE event <code>log</code> từ server.</p>
+        <p class="dim">Feed chạy realtime khi nhận SSE event <code>log</code> từ server.</p>
       </div>
     </section>
   </div>`;
 
-  /* ----- stat cards ----- */
   const $ = (s) => el.querySelector(String(s).startsWith('#') ? s : '#' + s);
 
-  function fillStats(s) {
+  /* ----- status line ----- */
+  function fillStatus(s) {
     if (!s) return; // offline — giữ '—'
-    const counts = s.counts || {};
-    countUp($('st-plugins'), counts.plugins, { fmt: fmtNum });
-    countUp($('st-mcps'), counts.mcps, { fmt: fmtNum });
-    countUp($('st-skills'), counts.skills, { fmt: fmtNum });
+    const c = s.counts || {};
+    $('kv-mcps').textContent = `${c.mcps ?? '—'} (100% thật)`;
+    $('kv-plugins').textContent = `${c.plugins ?? '—'} (behavior thật)`;
+    $('kv-skills').textContent = `${c.skills ?? '—'}`;
     const conn = typeof s.connectedMcps === 'number' ? s.connectedMcps : null;
-    const connEl = $('st-connected');
-    if (conn === null) { connEl.innerHTML = '&nbsp;'; }
-    else {
-      connEl.innerHTML = `${icon('solar/activity', 'ic-xs')} <span id="st-conn-n">0</span> connected`;
-      countUp(connEl.querySelector('#st-conn-n'), conn, { fmt: fmtNum });
+    $('sl-mcp').textContent = conn === null ? '— MCP' : `${conn}/${c.mcps ?? '?'} MCP đã bật`;
+    $('sl-node').textContent = s.env && s.env.node ? `node ${s.env.node}` : '';
+  }
+
+  /* ----- MCP executor panel: server thật + trạng thái ----- */
+  async function fillMcps() {
+    let items = [];
+    try {
+      const d = await api.mcps();
+      items = d.items || [];
+      store.registries.mcps = items;
+    } catch {
+      $('mcp-rows').innerHTML = '<div class="oc-row"><span class="ocr-name dim">không tải được danh sách MCP</span></div>';
+      return;
     }
-    // Caption MCPs: '98 mô phỏng · 8 thật' — ẩn nếu backend chưa trả realMcps
-    const capEl = $('st-mcp-cap');
-    if (typeof counts.realMcps === 'number' && typeof counts.mcps === 'number') {
-      const sim = Math.max(0, counts.mcps - counts.realMcps);
-      capEl.textContent = `${sim} mô phỏng · ${counts.realMcps} thật`;
-      capEl.hidden = false;
-    } else {
-      capEl.hidden = true;
-    }
-    $('st-env').textContent = s.env && s.env.node ? `node ${s.env.node}` : '';
+    const on = items.filter((m) => m.state === 'connected').length;
+    const autos = items.filter((m) => m.autoStart);
+    $('mcp-sum').textContent = `${on}/${items.length} bật · ${autos.length} tự bật`;
+    $('mcp-rows').innerHTML = items.map((m) => {
+      const live = m.state === 'connected';
+      return `<div class="oc-row" data-mcp="${esc(m.id)}">
+        <span class="ocr-mark ${live ? 'on' : ''}"></span>
+        <span class="ocr-name">${esc(m.id)}</span>
+        ${m.autoStart ? '<span class="ocr-tag">auto</span>' : ''}
+        <span class="ocr-right">${live ? `${m.toolCount ?? 0} tools` : 'tắt'}</span>
+      </div>`;
+    }).join('');
   }
 
   // Uptime tick mỗi giây (mốc từ lần fetch status gần nhất)
   let uptimeBase = store.status ? store.status.uptimeSec : null;
   let fetchedAt = Date.now();
   function tickUptime() {
-    if (uptimeBase == null) { $('st-uptime').textContent = '—'; return; }
-    $('st-uptime').textContent = fmtDur(uptimeBase + (Date.now() - fetchedAt) / 1000);
+    $('sl-up').textContent = uptimeBase == null ? '—' : `up ${fmtDur(uptimeBase + (Date.now() - fetchedAt) / 1000)}`;
   }
 
   const offStatus = listen('status', (s) => {
     if (!s) return;
     uptimeBase = s.uptimeSec;
     fetchedAt = Date.now();
-    fillStats(s);
+    fillStatus(s);
     tickUptime();
   });
-  fillStats(store.status);
+  fillStatus(store.status);
   tickUptime();
   const upTimer = setInterval(tickUptime, 1000);
+
+  /* ----- boot state: hiện tiến trình tự bật MCP ----- */
+  async function fillBoot() {
+    try {
+      const b = await api.boot();
+      const a = b.autoStart;
+      const elb = $('sl-boot');
+      if (!a) { elb.innerHTML = `<span class="ring"></span> ${esc(b.phase || '—')}`; return; }
+      if (!a.done) elb.innerHTML = `<span class="mini-spin"></span> đang bật ${a.ok}/${a.total} MCP`;
+      else if (a.failed.length) elb.innerHTML = `${icon('blade/warn', 'ic-xs')} ${a.ok}/${a.total} MCP (${a.failed.length} lỗi)`;
+      else elb.innerHTML = `${icon('blade/check', 'ic-xs')} ${a.ok}/${a.total} MCP tự bật`;
+    } catch { /* offline */ }
+  }
+  const offBoot = listen('boot', () => { fillBoot(); fillMcps(); });
+  const offMcpEvt = listen('mcp', () => fillMcps());
 
   /* ----- Quick action: Build Environment → auto sang Settings xem log ----- */
   $('qa-build').addEventListener('click', async (e) => {
@@ -121,12 +173,12 @@ export async function render(el) {
     if (!skills.length) { toast('Không tải được danh sách skills (API offline)', 'warn'); return; }
     openSheet(`
       <div class="sheet-head"><span class="rc-icon">${icon('blade/sparkles', '')}</span>
-        <div><div class="sheet-title">Chạy skill nhanh</div>
-        <div class="sheet-sub">${esc(String(skills.length))} skills khả dụng</div></div>
+        <div><div class="sheet-title">Chạy skill</div>
+        <div class="sheet-sub">${esc(String(skills.length))} skill Luau/LSP khả dụng</div></div>
       </div>
-      <div id="skill-pick" class="stagger">${skills.slice(0, 40).map((sk) => `
+      <div id="skill-pick" class="stagger">${skills.map((sk) => `
         <button type="button" class="card row-card" data-skill-id="${esc(sk.id)}">
-          <span class="rc-icon">${sk.icon ? esc(sk.icon) : icon('blade/sparkles', '')}</span>
+          <span class="rc-icon">${icon(sk.icon || 'blade/sparkles', '')}</span>
           <span class="rc-main">
             <span class="rc-top"><b>${esc(sk.name)}</b></span>
             <span class="rc-desc">${esc(sk.description)}</span>
@@ -143,27 +195,36 @@ export async function render(el) {
     });
   });
 
-  /* ----- Activity feed realtime (SSE 'log') ----- */
+  /* ----- Activity stream realtime (SSE 'log') ----- */
   const feed = $('feed');
   const feedEmpty = $('feed-empty');
+  let nLines = 0;
 
   function prependLog(evt) {
     const line = evt.line ?? evt.message ?? evt.detail ?? JSON.stringify(evt);
     const li = document.createElement('li');
+    li.className = 'ocs-line';
     li.innerHTML =
-      `<span class="feed-time">${icon('blade/clock', 'ic-xs')}${fmtClock()}</span>` +
-      `<span class="feed-line">${esc(line)}</span>`;
+      `<span class="ocs-t">${fmtClock()}</span>` +
+      `<span class="ocs-txt">${esc(line)}</span>`;
     feed.prepend(li);
-    while (feed.children.length > 50) feed.lastElementChild.remove(); // giữ tối đa 50 dòng
+    while (feed.children.length > 60) feed.lastElementChild.remove(); // giữ tối đa 60 dòng
     feedEmpty.classList.add('hidden');
+    $('feed-n').textContent = String(++nLines);
   }
 
   const offLog = listen('log', prependLog);
+
+  /* ---------------- boot view ---------------- */
+  fillMcps();
+  fillBoot();
 
   /* ----- cleanup khi rời view ----- */
   return () => {
     clearInterval(upTimer);
     offStatus();
     offLog();
+    offBoot();
+    offMcpEvt();
   };
 }

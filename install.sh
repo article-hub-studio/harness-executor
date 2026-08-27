@@ -125,10 +125,24 @@ cd "$DIR"
 
 # ---------- 4. dữ liệu (zero-dependency: không npm install!) ----------
 if [ ! -s data/mcps.json ]; then
-  say "Sinh registry mô phỏng (106 MCPs · 143 plugins · 41 skills)…"
+  say "Sinh registry Luau/LSP (10 MCP THẬT · 10 plugins · 13 skills)…"
   node scripts/generate-registries.js >/dev/null
 fi
 mkdir -p workspace mcp-servers
+
+# ---------- 4b. binary luau-lsp cho MCP server bundled ----------
+# luau-lsp là tiến trình THẬT mà server/mcp/luau-mcp bọc lại. Thiếu nó thì
+# luau-mcp phải fallback sang `npx -y luau-lsp` (~40s mỗi lần gọi) — chậm không dùng được.
+if command -v luau-lsp >/dev/null 2>&1; then
+  ok "luau-lsp có sẵn ($(luau-lsp --version 2>/dev/null | head -1))"
+elif command -v npm >/dev/null 2>&1; then
+  say "Cài luau-lsp toàn cục (cho MCP server Luau)…"
+  if npm i -g luau-lsp >/dev/null 2>&1; then
+    ok "luau-lsp đã cài: $(luau-lsp --version 2>/dev/null | head -1)"
+  else
+    warn "không cài được luau-lsp — MCP luau-lsp sẽ chạy qua npx (chậm hơn nhiều)"
+  fi
+fi
 
 # ---------- 5. chạy ----------
 export PORT

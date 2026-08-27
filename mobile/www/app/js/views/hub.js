@@ -5,7 +5,7 @@
    ============================================================ */
 import {
   api, listen, esc, toast, openSheet, onSheetClose,
-  store, debounce, fmtNum, copyText, icon, stMark, stateLabel,
+  store, debounce, copyText, icon, stMark, stateLabel,
 } from '../app.js';
 
 const state = {
@@ -19,21 +19,19 @@ const state = {
 
 /* Icon theo category (chỉ dùng tên có trong ICONS) */
 const CAT_ICONS = {
-  filesystem: 'solar/folder', git: 'solar/branch', 'web-fetch': 'solar/globe', browser: 'solar/globe',
-  database: 'solar/database', search: 'solar/search', 'ai-ml': 'solar/cpu', 'cloud-devops': 'solar/server',
-  communication: 'solar/mail', productivity: 'solar/calendar', media: 'solar/film', 'data-etl': 'blade/refresh',
-  blockchain: 'solar/link', finance: 'solar/chart', 'maps-geo': 'solar/pin', iot: 'solar/house',
-  security: 'solar/shield',
+  /* MCP category của bản Luau/LSP */
+  luau: 'solar/cpu', lsp: 'solar/search', workspace: 'solar/folder', security: 'solar/shield',
   /* plugins / tags */
   automation: 'solar/zap', devtools: 'solar/terminal', ai: 'solar/cpu', web: 'solar/globe',
   system: 'solar/server', data: 'solar/database', networking: 'solar/link', text: 'solar/file',
-  tools: 'solar/wrench', prompt: 'solar/chat',
+  tools: 'solar/wrench', prompt: 'solar/chat', roblox: 'solar/house', ops: 'solar/server',
   /* server thật */
   real: 'blade/bolt',
 };
 
-/** Nhãn hiển thị của category ('real' → 'Thật'). */
-const catLabel = (c) => (String(c) === 'real' ? 'Thật' : String(c ?? ''));
+/** Nhãn hiển thị của category. */
+const CAT_LABELS = { luau: 'Luau', lsp: 'LSP', workspace: 'Workspace', security: 'Security', real: 'Thật' };
+const catLabel = (c) => CAT_LABELS[String(c)] ?? String(c ?? '');
 
 /** Icon trong data là emoji (server thật) hay SVG name → render tương ứng. */
 function itemIcon(it, fallbackSvg) {
@@ -51,9 +49,9 @@ export async function render(el) {
 
   el.innerHTML = `
   <div class="container">
-    <header class="hero">
-      <h1 class="hero-brand">${icon('solar/hub', 'ic-lg')} Hub</h1>
-      <p class="hero-sub">Registry MCP servers · plugins · skills</p>
+    <header class="oc-hero">
+      <div class="oc-wordmark">hub</div>
+      <div class="oc-statusline"><span class="oc-sl-item">registry luau · lsp · workspace</span></div>
     </header>
     <div class="segmented" role="tablist" id="hub-seg">
       <button type="button" class="seg-btn active" data-tab="mcps" role="tab">MCPs</button>
@@ -130,15 +128,18 @@ export async function render(el) {
     const chev = `<span class="rc-chevron">${icon('blade/chevr', 'ic-sm')}</span>`;
     if (state.tab === 'mcps') {
       const connected = it.state === 'connected';
-      const realBadge = it.real ? `<span class="badge real-badge">REAL</span>` : '';
+      // Registry chỉ còn MCP thật → không cần badge REAL nữa; thay bằng AUTO cho server tự bật.
+      const autoBadge = it.autoStart ? '<span class="badge mini inv">AUTO</span>' : '';
       const featured = it.featured ? ' featured' : '';
+      // toolCount do API trả (tools/list thật khi đã bật, toolPreview khi chưa)
+      const nTools = it.toolCount ?? (it.tools || []).length;
       return `
         <button type="button" class="card row-card${featured}" data-id="${esc(it.id)}">
           <span class="rc-icon">${itemIcon(it, 'solar/server')}</span>
           <span class="rc-main">
-            <span class="rc-top"><b>${esc(it.name)}</b>${realBadge}<span class="badge mini">${esc(fmtNum(it.stars))} sao</span></span>
+            <span class="rc-top"><b>${esc(it.name)}</b>${autoBadge}</span>
             <span class="rc-desc">${esc(it.description)}</span>
-            <span class="rc-meta">${stMark(connected ? 'connected' : 'disconnected')}${esc(catLabel(it.category))} · v${esc(it.version)} · ${(it.tools || []).length} tools</span>
+            <span class="rc-meta">${stMark(connected ? 'connected' : 'disconnected')}${esc(catLabel(it.category))} · ${esc(String(nTools))} tools · ${esc(it.transport)}</span>
           </span>
           ${chev}
         </button>`;
@@ -148,9 +149,9 @@ export async function render(el) {
         <button type="button" class="card row-card" data-id="${esc(it.id)}">
           <span class="rc-icon">${itemIcon(it, 'solar/puzzle')}</span>
           <span class="rc-main">
-            <span class="rc-top"><b>${esc(it.name)}</b><span class="badge mini">${it.enabled ? 'ON' : 'OFF'}</span></span>
+            <span class="rc-top"><b>${esc(it.name)}</b><span class="badge mini${it.enabled ? ' inv' : ''}">${it.enabled ? 'ON' : 'OFF'}</span></span>
             <span class="rc-desc">${esc(it.description)}</span>
-            <span class="rc-meta">${icon('blade/bolt', 'ic-xs')} pop ${esc(String(it.popularity ?? '—'))}</span>
+            <span class="rc-meta">${icon('blade/bolt', 'ic-xs')}${esc(it.behavior || '—')}</span>
           </span>
           ${chev}
         </button>`;
@@ -159,7 +160,7 @@ export async function render(el) {
       <button type="button" class="card row-card" data-id="${esc(it.id)}">
         <span class="rc-icon">${itemIcon(it, 'blade/sparkles')}</span>
         <span class="rc-main">
-          <span class="rc-top"><b>${esc(it.name)}</b><span class="badge mini inv">${(it.steps || []).length} bước</span></span>
+          <span class="rc-top"><b>${esc(it.name)}</b><span class="badge mini">${(it.steps || []).length} bước</span></span>
           <span class="rc-desc">${esc(it.description)}</span>
           <span class="rc-meta">${esc((it.tags || []).join(' · '))}</span>
         </span>
@@ -253,12 +254,11 @@ export async function render(el) {
       <div class="sheet-head">
         <span class="rc-icon">${itemIcon(item, 'solar/server')}</span>
         <div style="min-width:0">
-          <div class="sheet-title">${esc(item.name)}${item.real ? ' <span class="badge real-badge">REAL</span>' : ''}</div>
-          <div class="sheet-sub">by ${esc(item.author || 'upio')} · v${esc(item.version)} · ${esc(item.transport || 'builtin')}${item.install ? ` · ${esc(item.install.method)}` : ''}</div>
+          <div class="sheet-title">${esc(item.name)}${item.autoStart ? ' <span class="badge mini inv">AUTO</span>' : ''}</div>
+          <div class="sheet-sub">by ${esc(item.author || 'upio')} · v${esc(item.version)} · ${esc(item.transport)}${item.install ? ` · ${esc(item.install.method)}` : ''}</div>
         </div>
       </div>
-      <div class="tag-row">${(item.tags || []).map((t) => `<span class="badge mini">#${esc(t)}</span>`).join('')}
-        <span class="badge mini">${esc(fmtNum(item.stars))} sao</span></div>
+      <div class="tag-row">${(item.tags || []).map((t) => `<span class="badge mini">#${esc(t)}</span>`).join('')}</div>
       <p class="sheet-desc">${esc(item.description)}</p>
       ${!item.installed && item.install && item.install.repo ? `<p class="dim" style="font-size:12.5px;margin:-2px 0 8px;display:flex;gap:6px;align-items:baseline">${icon('blade/warn', 'ic-xs')} Server chưa được cài trên máy này — cần tải &amp; build từ repo trước khi kết nối.</p>` : ''}
       <div class="sheet-sec hidden" id="mcp-install-area"></div>

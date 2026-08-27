@@ -7,7 +7,7 @@ import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { Registry } from '../registry/registry.js';
-import { createBuiltinTransport, createStdioTransport, createHttpTransport } from './mcp-client.js';
+import { createStdioTransport, createHttpTransport } from './mcp-client.js';
 import { BEHAVIORS } from './plugin-behaviors.js';
 
 /** @typedef {import('../types.js').ToolResult} ToolResult */
@@ -21,8 +21,23 @@ const LIST_TOOLS_TIMEOUT_MS = 90_000;   // tools/list cho server thật (npx col
 /**
  * Whitelist tool "đọc-an toàn" cho MCP thật: không cần ctx.approved.
  * Mọi tool khác trên server real → bắt buộc approved=true.
+ *
+ * Phiên bản Luau/LSP: mọi server đều real, nên whitelist phải bao gồm các tool
+ * chỉ-đọc của luau-lsp và các LSP bridge. Tool ghi/thực thi (execute, rename,
+ * write_file, mutate_*, manage_*, code_action…) KHÔNG nằm ở đây → vẫn cần duyệt.
  */
-const SAFE_TOOL_RX = /^(list[-_]|get[-_]|search|semantic|script-grep)/i;
+const SAFE_TOOL_RX = new RegExp([
+  '^(list[-_]|get[-_]|search|semantic|script-grep)',           // whitelist cũ
+  '^luau_(analyze|check_source|require_graph|document_symbols|hover|definition|lint_rules|version)$',
+  '^lsp_(init|health|definition|type_definition|implementation|references|hover|signature_help)$',
+  '^lsp_(document_symbols|workspace_symbols|diagnostics|workspace_diagnostics|completions)$',
+  '^lsp_(goto_definition|goto_type_definition|find_references|find_implementations)$',
+  '^lsp_(file_exports|file_imports|related_files)$',
+  '^(read_file|read_text_file|list_directory|directory_tree|get_file_info|search_files)$',
+  '^git_(status|log|show|diff|diff_staged|diff_unstaged)$',
+  '^(read_graph|search_nodes|open_nodes)$',
+  '^(system_info|scene_overview|describe_instance|find_instances|query_instances)$',
+].join('|'), 'i');
 
 const clip = (v, n) => {
   const s = String(v ?? '');
@@ -93,7 +108,7 @@ export class Executor extends EventEmitter {
   }
 
   /**
-   * Server thực đã cài chưa? git-clone → kiểm tra file entry; npx/server thường → coi là có.
+   * Server thực đã cài chưa? git-clone/bundled → kiểm tra file entry; npx → coi là có.
    * @param {string} id @returns {Promise<boolean>}
    */
   async isRealInstalled(id) {
@@ -101,7 +116,7 @@ export class Executor extends EventEmitter {
     const desc = this._realDesc(id);
     if (!desc) return false;
     const install = desc.install ?? {};
-    if (install.method === 'git-clone') {
+    if (install.method === 'git-clone' || install.method === 'bundled') {
       if (!install.dir) return false;
       return existsSync(path.join(this.rootDir, install.dir, install.entry ?? 'dist/index.js'));
     }
@@ -279,16 +294,13 @@ export class Executor extends EventEmitter {
       } else if (desc.transport === 'http') {
         transport = createHttpTransport({ url: desc.url });
       } else {
-        transport = createBuiltinTransport(id);
+        // Registry chỉ còn MCP THẬT (stdio/http). Không còn transport 'builtin' mô phỏng.
+        throw new Error(`transport '${desc.transport}' không được hỗ trợ — registry chỉ nhận stdio/http`);
       }
-      // verify: stdio/http thử thật (lỗi → ném để router trả 502); builtin lấy tools nếu có
+      // verify: luôn thử tools/list thật; lỗi → ném để router trả 502 (không im lặng fallback)
       let tools = Array.isArray(desc.tools) ? desc.tools : [];
-      try {
-        const listed = await transport.listTools();
-        if (Array.isArray(listed) && listed.length) tools = listed;
-      } catch (e) {
-        if (desc.transport !== 'builtin') throw e;
-      }
+      const listed = await transport.listTools();
+      if (Array.isArray(listed) && listed.length) tools = listed;
       this.transports.set(id, { transport, tools, kind: transport.kind ?? desc.transport });
     } catch (e) {
       try { await transport?.close(); } catch { /* ignore */ }
@@ -367,7 +379,7 @@ export class Executor extends EventEmitter {
     const t0 = Date.now();
     const desc = this.registry.mcp(server);
     const conn = this.transports.get(server);
-    const mocked = conn?.kind === 'builtin';
+    const mocked = false; // registry chỉ còn MCP thật → không bao giờ mô phỏng
     const pluginsApplied = [];
     /** @type {ToolResult} */
     let result;
@@ -482,6 +494,16 @@ export class Executor extends EventEmitter {
       level: 'info',
       line: `invoke ${server}.${tool} → ${result.ok ? 'ok' : 'error'} (${durationMs}ms)`,
     });
+    // Tool-call event riêng: web Chat dựng part "tool" kiểu OpenCode từ đây.
+    // Cắt output cho gọn để SSE không bao giờ tải nặng.
+    this.emit('mcp', {
+      id: server,
+      tool,
+      ok: result.ok,
+      durationMs,
+      args,
+      detail: String(result.ok ? (result.result ?? '') : (result.error ?? '')).slice(0, 4000),
+    });
     void this._audit({
       ts: new Date().toISOString(),
       server, tool,
@@ -516,8 +538,15 @@ export class Executor extends EventEmitter {
   mcps(filter = {}) {
     this._ensureReady();
     const { status, ...rest } = filter ?? {};
-    const items = this.registry.mcps(rest)
-      .map((m) => ({ ...m, state: this.transports.has(m.id) ? 'connected' : 'disconnected' }));
+    const items = this.registry.mcps(rest).map((m) => {
+      const live = this.transports.get(m.id)?.tools ?? [];
+      return {
+        ...m,
+        state: this.transports.has(m.id) ? 'connected' : 'disconnected',
+        // dynamicTools: số tool chỉ biết sau khi kết nối; chưa kết nối thì lấy toolPreview
+        toolCount: live.length || (m.tools ?? []).length || (m.toolPreview ?? []).length,
+      };
+    });
     const st = String(status ?? '').trim().toLowerCase();
     return st ? items.filter((m) => m.state === st) : items;
   }
@@ -599,14 +628,16 @@ export class Executor extends EventEmitter {
           serverId = hit?.[0];
         }
         if (!serverId) {
-          // chưa có server nào connect → tự connect server builtin đầu tiên (theo thứ tự registry) có tool đó
+          // chưa connect → tìm server trong registry khai báo tool này (tools thật hoặc toolPreview)
           const cand = this.registry.mcps().find(
-            (m) => m.transport === 'builtin' && (m.tools ?? []).some((t) => t.name === toolName),
+            (m) => (m.tools ?? []).some((t) => t.name === toolName)
+              || (m.toolPreview ?? []).includes(toolName),
           );
           if (!cand) throw new Error(`không có server nào cung cấp tool '${toolName}'`);
-          await this.connect(cand.id);
           serverId = cand.id;
         }
+        // server đã khai báo nhưng chưa kết nối → tự kết nối (mọi MCP đều là stdio thật)
+        if (!this.transports.has(serverId)) await this.connect(serverId);
 
         const r = await this.invoke(serverId, toolName, args, { source: 'skill' });
         const detail = r.ok ? clip(fmtVal(r.result), 300) : String(r.error ?? 'unknown error');

@@ -7,8 +7,10 @@
 
 WebUI mobile-first (PWA) + backend Node.js cho **upio MCP Executor**:
 
-- **98 MCP servers** trong registry (`data/mcps.json`), mỗi server có tools mô tả bằng JSON Schema.
-- **143 plugins** (`data/plugins.json`) — middleware pipeline quanh mọi tool call.
+- **10 MCP servers THẬT** trong registry (`data/mcps.json`) — chuyên **Luau + LSP**, mọi entry `real:true` và
+  `transport:'stdio'`; tools lấy từ `tools/list` thật khi kết nối. KHÔNG còn server mô phỏng.
+- **10 plugins** (`data/plugins.json`) — middleware pipeline quanh mọi tool call, mỗi plugin có `behavior` thật.
+- Ba server có `autoStart:true` (`luau-lsp`, `lsp-universal`, `mcp-filesystem`) được **bật tự động khi boot**.
 - **Skills** (`data/skills.json`) — quy trình nhiều bước (model / tool) chạy streaming.
 - **Environment auto-builder** — quét & sửa môi trường, stream log.
 - **Model Hub** — provider tùy chỉnh chuẩn OpenAI-compatible + mock model nội bộ.
@@ -20,7 +22,7 @@ WebUI mobile-first (PWA) + backend Node.js cho **upio MCP Executor**:
 |---|---|
 | `server/index.js`, `server/src/router.js`, `server/src/sse.js` | MAIN (không đụng) |
 | `server/src/executor/executor.js`, `mcp-client.js`, `server/src/registry/registry.js` | SA-core |
-| `server/src/executor/builtin-servers/**` | SA-builtin |
+| `server/mcp/luau-mcp/**` | MCP server bundled bọc binary `luau-lsp` (zero-dep) |
 | `server/src/envbuilder/**` | SA-env |
 | `server/src/modelhub/**` | SA-model |
 | `server/src/subagents/**` | SA-agents |
@@ -32,12 +34,14 @@ WebUI mobile-first (PWA) + backend Node.js cho **upio MCP Executor**:
 ```js
 /** @typedef {{name:string, description:string, inputSchema:object}} McpTool */
 /** @typedef {{id:string, name:string, category:string, description:string, version:string,
- *             author:string, icon:string, transport:'builtin'|'stdio'|'http',
+ *             author:string, icon:string, transport:'stdio'|'http',
  *             command?:string, args?:string[], url?:string, tags:string[], stars:number,
+ *             real:boolean, autoStart?:boolean, toolPreview?:string[],
+ *             install?:{method:'bundled'|'git-clone'|'npx',dir?:string,entry?:string,repo?:string},
  *             tools:McpTool[]}} McpDescriptor */
 /** @typedef {{id:string, name:string, category:string, version:string, description:string,
  *             icon:string, permissions:string[], hooks:string[], enabled:boolean,
- *             popularity:number}} Plugin */
+ *             popularity:number, behavior:string}} Plugin */
 /** @typedef {{type:'model'|'tool'|'note', prompt?:string, server?:string, tool?:string,
  *             argsTemplate?:object}} SkillStep */
 /** @typedef {{id:string, name:string, description:string, icon:string, tags:string[],
@@ -56,7 +60,7 @@ WebUI mobile-first (PWA) + backend Node.js cho **upio MCP Executor**:
 - `GET  /api/mcps/:id` → chi tiết đầy đủ kèm `tools`; server thật có thêm `installed:boolean`
 - `POST /api/mcps/:id/install` → cài server thật (git clone + build), log stream qua SSE `log` (`payload.install===true`) → `{ok,logs}`
 - `PUT  /api/mcps/:id/env` body `{env:{KEY:value}}` → lưu env cho server thật (GitHub/Brave/Slack…) → `{ok}`
-- `POST /api/mcps/:id/connect` → `{id, state:'connected', tools:McpTool[]}` (builtin kết nối tức thì; stdio/http thử thật, lỗi → 502 `{error}`)
+- `POST /api/mcps/:id/connect` → `{id, state:'connected', tools:McpTool[]}` — LUÔN thử `tools/list` thật, lỗi → 502 `{error}` (không có fallback mô phỏng)
 - `POST /api/mcps/:id/disconnect` → `{id, state:'disconnected'}`
 - `POST /api/invoke` body `{server, tool, args, approved?}` → `ToolResult` (đi qua plugin pipeline + audit)
 - `GET  /api/skills` → `{total, items:Skill[]}`; `GET /api/skills/:id`
@@ -71,8 +75,10 @@ WebUI mobile-first (PWA) + backend Node.js cho **upio MCP Executor**:
 - `GET  /api/agents/:id` → `{id,...,steps:[...],session:[{role,text,at}],followUps,answer?}`
 - `POST /api/agents/:id/say` body `{message}` → agent chạy TIẾP multi-turn (Agent AI Workspace) → `{ok,id}`; lỗi trạng thái → 409
 - `POST /api/agents/:id/cancel` → `{ok}`
-- `GET  /api/events` — **SSE**, event types: `log`, `skill-run`, `env`, `agent-step`, `mcp`, `plugin`, `boot`. Payload luôn JSON string. Gửi `retry: 3000`.
-- `GET  /api/boot` → `{phase:'booting'|'ready'|'error', startedAt, finishedAt?, steps:[{name,status,ms?,detail?}], error?}` — server TỪ động chạy EnvBuilder.build(repair) + connect toàn bộ MCP builtin ngay khi listen; tiến độ phát qua SSE `boot` và `log` (`payload.boot===true`).
+- `GET  /api/audit?tail=N` → `{total, items:[{ts,server,tool,args,ok,error?,durationMs,source,pluginsApplied}]}` (N ≤ 500, mặc định 50)
+- `GET  /api/events` — **SSE**, event types: `log`, `skill-run`, `env`, `agent-step`, `mcp`, `plugin`, `boot`, `term`, `perm`. Payload luôn JSON string. Gửi `retry: 3000`.
+  - event `mcp` có 2 dạng: đổi trạng thái `{id, state, tools?}` và **tool-call** `{id, tool, ok, durationMs, args, detail}` (web Chat dựng part `tool` từ dạng thứ hai).
+- `GET  /api/boot` → `{phase:'booting'|'ready'|'error', startedAt, finishedAt?, steps:[{name,status,ms?,detail?}], autoStart:{total,ok,failed:string[],done,ms}, error?}` — server tự chạy `EnvBuilder.build(repair)` rồi bật **các MCP có `autoStart`** ở chế độ NỀN (không chặn `phase:'ready'`); tiến độ phát qua SSE `boot` và `log`.
 
 ## 5. Hợp đồng từng module
 
@@ -83,7 +89,6 @@ WebUI mobile-first (PWA) + backend Node.js cho **upio MCP Executor**:
 - Trạng thái enabled/override lưu `data/state.json` (ghi bất đồng bộ an toàn).
 
 ### 5.2 `mcp-client.js` — export các factory
-- `createBuiltinTransport(serverId)` → dùng `builtin-servers/index.js#getServer`; trả `{listTools(), call(tool,args,ctx), close(), kind:'builtin'}`.
 - `createStdioTransport({command,args})` → spawn process, JSON-RPC 2.0 line-delimited (MCP stdio), handshake `initialize`, timeout 10s mỗi call; `{kind:'stdio',...}`.
 - `createHttpTransport({url, headers})` → JSON-RPC qua HTTP POST (MCP streamable-http tối giản); `{kind:'http',...}`.
 - Mọi transport: `call()` → `ToolResult`.
@@ -102,10 +107,15 @@ WebUI mobile-first (PWA) + backend Node.js cho **upio MCP Executor**:
 - Skills: `runSkill(id, input, emit)` → runId; từng step emit `emit('skill-run',{runId,i,total,type,status,detail})`. Step `model` → `ctx.modelHub.chat(...)`, step `tool` → `this.invoke(...)`; lỗi step không dừng run (status:'error').
 - `stats()` → counts, connectedMcps, invocations, lastAudit(20).
 
-### 5.4 `builtin-servers/index.js` — export
-- `getServer(id)` → `null | {tools:McpTool[], call(tool,args,ctx):Promise<ToolResult>, kind:'builtin'}`
-- `listServerIds()` → string[]
-- Yêu cầu: đầu ra xác định-tự-nhiên (seeded theo args), mô phỏng hợp lý cho mọi category (fs, git, http, db, search, ai, cloud, comms, media, iot, finance, geo, security, data...). Trả error có kiểm soát nếu tool không tồn tại.
+### 5.4 `server/mcp/luau-mcp/index.js` — MCP server bundled (zero-dep)
+- MCP stdio JSON-RPC 2.0 chuẩn: `initialize` (`protocolVersion:'2024-11-05'`) → `notifications/initialized` → `tools/list` / `tools/call`.
+- 8 tool THẬT bọc binary `luau-lsp`: `luau_analyze`, `luau_check_source`, `luau_require_graph`,
+  `luau_document_symbols`, `luau_hover`, `luau_definition`, `luau_lint_rules`, `luau_version`.
+- `resolveLuau()`: ưu tiên `LUAU_LSP_BIN` → `luau-lsp` trong PATH → `npx -y luau-lsp` (chậm, chỉ khi thiếu).
+- Hover/definition/documentSymbol đi qua `LspSession` (LSP framing `Content-Length: N\r\n\r\n`); tool nhận
+  dòng/cột **1-based** rồi tự trừ 1 khi gửi LSP (LSP dùng 0-based).
+- `denoise()` lọc bỏ dòng nhiễu (`WARNING: --platform`, `[WARN] No definitions file`, `[INFO] sourcemap is disabled`);
+  `platformArgs()` mặc định `--platform=standard`.
 
 ### 5.5 `envbuilder.js` — export `class EnvBuilder`
 - `scan()` → report như API (kiểm tra: node, npm, python3, pip, git, curl, RAM, disk, PORT trống, data dirs, .env).
@@ -128,24 +138,36 @@ WebUI mobile-first (PWA) + backend Node.js cho **upio MCP Executor**:
 ### 5.8 Frontend `web/` (SA-web)
 Vanilla ES modules, KHÔNG framework, KHÔNG build. Trang shell `index.html` + `css/app.css` + `js/app.js` (+ view modules). Mobile-first:
 
-- Tab bar dưới 5 mục: 🏠 Home · 🧩 Hub · 🤖 Agents · 💬 Chat · ⚙️ Settings (safe-area, ≥44px).
-- **Home**: header brand "upio executor", thẻ trạng thái (uptime, counts, connected), quick actions (Build Environment, Run skill gợi ý), activity feed realtime (SSE `log`).
+- Tab bar dưới **6 mục**: Home · Hub · Agents · Term · Chat · Settings (safe-area, ≥44px, `display:flex` + chỉ báo trượt — KHÔNG dùng `repeat(N,1fr)` cứng để thêm/bớt tab không lệch).
+- **BẮT BUỘC**: mọi key trong `ROUTES` của `app.js` phải có `<section id="view-<key>">` trong `index.html` VÀ một `data-route="<key>"` trong tab bar. View KHÔNG được tự bọc thêm `class="view"` (thẻ lồng không có `.active` → `display:none` → tab trắng trơn).
+- **Home**: wordmark mono + status line (autoStart, số MCP đã bật, uptime, node), panel **MCP executor** liệt kê từng server (mốc on/off, tag AUTO, số tool thật), panel registry dạng key/value mono, quick actions, activity stream mono realtime (SSE `log`).
 - **Hub**: segmented control [MCPs | Plugins | Skills] + ô tìm kiếm + chip lọc category; danh sách card (icon, tên, mô tả, badge); bottom-sheet chi tiết: MCP → connect/disconnect + list tools + form invoke (JSON args) hiện kết quả; Plugin → toggle switch + permissions; Skill → form inputs + Run (xem tiến độ từng bước trực tiếp).
 - **Agents**: form tạo agent (task textarea, số bước, chọn tools từ MCP đã connect, model), danh sách agent với progress, xem chi tiết từng step thought/action/observation, cancel.
-- **Chat**: giao diện chat qua `/v1/chat/completions` (stream hiển thị typewriter), chọn model từ `/api/models`.
+- **Chat**: dòng thời gian kiểu **OpenCode WebUI** — mỗi lượt là một `.part[data-role=user|assistant|tool]` gồm rail bên trái (`.part-mark` + `.part-bar`) và nội dung phải; văn bản là khối phẳng `.part-text` (viền 1px, bo 4px) chứ KHÔNG phải bubble; tool-call thật (SSE `mcp` có `tool`) render thành `.tool-block` (header `.tool-head` + output mono `.tool-body`). Stream typewriter qua `/v1/chat/completions`, chọn model từ `/api/models`.
 - **Settings**: Environment (nút Scan/Build + checklist pass/warn/fail), Models (thêm/sửa provider OpenAI-compatible, Test), About.
-- PWA: `manifest.webmanifest`, `sw.js` (cache-first cho static, network cho /api), theme **trắng–đen tối giản** (light mặc định + dark toggle), CSS custom properties, skeleton loading, toast, pull area refresh. Icon SVG nhúng trực tiếp qua `web/js/icons.js` (99 icon: bộ Solar cho chrome/điều hướng + Heroicons phong cách Blade cho thao tác — sinh bởi `scripts/build-icons.js`); icon PNG trắng–đen trong `web/icons/`.
-- Boot overlay: khi mở app, nếu `/api/boot.phase !== 'ready'` hiện màn hình setup 3 bước (môi trường → kết nối MCP → sẵn sàng) với log trực tiếp, fade out khi ready.
+- PWA: `manifest.webmanifest`, `sw.js` (cache-first cho static, network cho /api), CSS custom properties, skeleton loading, toast.
+- **Design tokens theo OpenCode WebUI** (`sst/opencode` → `packages/web/src/styles/custom.css`), warm-neutral hsl chứ không phải #fff/#000:
+  light `--bg: hsl(0,20%,99%)` · `--surface-2: hsl(0,8%,97%)` · `--text: hsl(0,5%,12%)` · `--text-dim: hsl(0,1%,39%)` · `--border-strong: hsl(30,2%,81%)`;
+  dark `--bg: hsl(0,9%,7%)` · `--surface: hsl(0,6%,10%)` · `--text: hsl(0,15%,94%)` · `--border-strong: hsl(0,3%,28%)`;
+  accent `--hi: hsl(62,84%,88%)` (light) / `hsl(62,100%,90%)` (dark) — vàng chanh, dùng cho chip/segment active và vạch featured.
+  Bán kính `--r-md: 4px` (0.25rem), `--shadow-1: none`. Mọi meta/nhãn phụ dùng `var(--mono)` cỡ 11–12px.
+- **KHÔNG emoji trong chrome UI**: mọi `icon` trong `data/*.json` phải là key có thật trong `web/js/icons.js` (99 icon Solar + Heroicons-Blade, sinh bởi `scripts/build-icons.js`); smoke test assert điều này.
+- Boot overlay: khi mở app, nếu `/api/boot.phase !== 'ready'` hiện màn hình setup với log trực tiếp, fade out khi ready. Watchdog trong `index.html` CHỈ reload khi `window.__UPIO_BOOTED` còn false (nếu không sẽ thành vòng lặp reload vô hạn).
 - `api.js` trung tâm gọi REST + SSE reconnect. Xử lý offline (banner "Offline").
 
 ## 6. Server chính (MAIN viết sẵn — subagent KHỐNG can thiệp)
 `server/index.js`: http server, static `web/`, mount routes trên, SSE hub broadcast toàn cục, PORT env mặc định **8787**.
 
-## 8. MCP thật & plugin behavior thật (v1.1)
+## 8. MCP thật & plugin behavior thật (v1.3 — registry Luau/LSP, 100% thật)
 
-- **8 REAL MCP servers** (`real:true`, transport stdio JSON-RPC chuẩn): `roblox-executor` của upio (git-clone từ GitLab + build) và 7 gói chính chủ Anthropic qua npx (memory, sequential-thinking, filesystem, everything, github*, brave-search*, slack* — *cần needsEnv). Placeholder `{workspace}` trong args → thư mục workspace/ tuyệt đối. Boot tự connect roblox nếu đã cài; npx servers kết nối thủ công (lần đầu cần mạng).
-- Gate tool nguy hiểm trên server thật: tool KHÔNG khớp `/^(list[-_]|get[-_]|search|semantic|script-grep)/i` yêu cầu `approved:true`.
-- **131/143 plugins có behavior thật** (field `behavior` + `behaviorLabel`): preInvoke — validate-required, defaults-fill, trim-strings, rate-limit, snapshot-args, redact-input; postInvoke — redact-output, clip-output, flatten-error, annotate-meta. Behavior ném lỗi ở pre-invoke → short-circuit không gọi transport.
+- **10/10 MCP servers là THẬT** (`real:true`, `transport:'stdio'`), registry chuyên Luau + LSP:
+  `luau-lsp` (bundled, autoStart, featured) · `lsp-universal` (autoStart) · `lsp-bridge` ·
+  `roblox-executor` (git-clone GitLab + build) · `roblox-studio` · `roblox-studio-weppy` ·
+  `mcp-filesystem` (autoStart) · `mcp-git` · `mcp-memory` · `mcp-sequential-thinking`.
+  Placeholder `{workspace}` trong args → thư mục `workspace/` tuyệt đối. `install.method` nhận `bundled` | `git-clone` | `npx`.
+- Gate tool: chỉ tool **chỉ-đọc** trong `SAFE_TOOL_RX` chạy ngay (mọi `luau_*`, `lsp_definition|references|hover|diagnostics|health|init`, `read_file|list_directory|directory_tree|get_file_info|search_files`, `git_status|log|show|diff*`, `read_graph|search_nodes|open_nodes`, `system_info|scene_overview|describe_instance|find_instances|query_instances`); tool ghi/thực thi yêu cầu `approved:true`.
+- Skill step `type:'tool'` không còn đòi `transport==='builtin'`: executor tìm server theo `tools`/`toolPreview` chứa tên tool rồi tự connect nếu chưa bật.
+- **10/10 plugins có behavior thật** (field `behavior` + `behaviorLabel`): preInvoke — validate-required, defaults-fill, trim-strings, rate-limit, snapshot-args, redact-input; postInvoke — redact-output, clip-output, flatten-error, annotate-meta. Behavior ném lỗi ở pre-invoke → short-circuit không gọi transport.
 - Chat & Workspace render **markdown** an toàn (web/js/md.js: escape-first, code block có Copy, link chỉ http(s)).
 
 ## 8b. Terminal tự động (v1.2)

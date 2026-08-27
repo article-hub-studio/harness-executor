@@ -1,1232 +1,543 @@
 {
- "generatedAt": "2026-08-26T09:59:50.884Z",
- "version": 1,
- "total": 41,
+ "generatedAt": "2026-08-27T03:12:13.268Z",
+ "version": 2,
+ "total": 13,
  "items": [
   {
-   "id": "code-review",
-   "name": "Code Review",
-   "description": "Review code theo checklist: đúng đắn, bảo mật, hiệu năng.",
-   "icon": "🔍",
+   "id": "luau-type-audit",
+   "name": "Luau Type Audit",
+   "description": "Type-check toàn bộ project Luau rồi xếp lỗi theo mức nghiêm trọng.",
+   "icon": "solar/search",
    "tags": [
     "ai",
-    "tools"
-   ],
-   "inputs": [
-    {
-     "key": "repo",
-     "label": "URL/repo cần review",
-     "placeholder": "https://github.com/upio/mcp-executor"
-    }
-   ],
-   "steps": [
-    {
-     "type": "note"
-    },
-    {
-     "type": "tool",
-     "tool": "git.status",
-     "argsTemplate": {}
-    },
-    {
-     "type": "tool",
-     "tool": "git.diff",
-     "argsTemplate": {
-      "base": "main",
-      "head": "HEAD"
-     }
-    },
-    {
-     "type": "model",
-     "prompt": "Bạn là reviewer cao cấp. Dựa trên diff và quan sát dưới đây, liệt kê vấn đề theo mức nghiêm trọng (blocker/warn/nit) với gợi ý sửa cụ thể.\n\nTASK REVIEW: {input.repo}\n{observations}"
-    }
-   ]
-  },
-  {
-   "id": "repo-summarize",
-   "name": "Repo Summarize",
-   "description": "Tổng quan kiến trúc + cách chạy một repo lạ.",
-   "icon": "📚",
-   "tags": [
-    "ai",
-    "tools"
-   ],
-   "inputs": [
-    {
-     "key": "repo",
-     "label": "Repo cần tóm tắt",
-     "placeholder": "."
-    }
-   ],
-   "steps": [
-    {
-     "type": "tool",
-     "tool": "fs.tree",
-     "argsTemplate": {
-      "depth": 3
-     }
-    },
-    {
-     "type": "tool",
-     "tool": "fs.search_files",
-     "argsTemplate": {
-      "pattern": "README*"
-     }
-    },
-    {
-     "type": "model",
-     "prompt": "Từ cây thư mục và README dưới đây, viết: (1) repo này làm gì, (2) kiến trúc chính, (3) cách chạy/dev/test, (4) rủi ro khi đóng góp.\n\n{observations}"
-    }
-   ]
-  },
-  {
-   "id": "api-smoke-test",
-   "name": "Api Smoke Test",
-   "description": "Kiểm khói API public: status, latency, schema phản hồi.",
-   "icon": "🚬",
-   "tags": [
-    "ai",
-    "tools"
-   ],
-   "inputs": [
-    {
-     "key": "baseUrl",
-     "label": "Base URL của API",
-     "placeholder": "https://api.example.com"
-    }
-   ],
-   "steps": [
-    {
-     "type": "tool",
-     "tool": "web.check_status",
-     "argsTemplate": {}
-    },
-    {
-     "type": "tool",
-     "tool": "web.http_request",
-     "argsTemplate": {
-      "method": "GET"
-     }
-    },
-    {
-     "type": "model",
-     "prompt": "Tổng hợp kết quả kiểm khói API {input.baseUrl}: bảng endpoint→status→latency, nhận xét anyomalies, đề xuất 3 test tự động hoá.\n\n{observations}"
-    }
-   ]
-  },
-  {
-   "id": "changelog-gen",
-   "name": "Changelog Gen",
-   "description": "Soạn changelog đẹp từ git log tuần.",
-   "icon": "📜",
-   "tags": [
-    "ai",
-    "tools"
-   ],
-   "inputs": [
-    {
-     "key": "repo",
-     "label": "Repo",
-     "placeholder": "."
-    }
-   ],
-   "steps": [
-    {
-     "type": "tool",
-     "tool": "git.log",
-     "argsTemplate": {
-      "limit": 30
-     }
-    },
-    {
-     "type": "model",
-     "prompt": "Nhóm commits thành Features/Fixes/Breaking/Docs theo Keep a Changelog, giọng văn hướng tới user cuối.\n\n{observations}"
-    }
-   ]
-  },
-  {
-   "id": "bug-triage",
-   "name": "Bug Triage",
-   "description": "Phân loại lỗi vừa đến: mức ưu tiên + người phụ trách.",
-   "icon": "🐛",
-   "tags": [
-    "ai",
-    "tools"
-   ],
-   "inputs": [
-    {
-     "key": "title",
-     "label": "Tên lỗi",
-     "placeholder": "Crash khi upload ảnh lớn"
-    }
-   ],
-   "steps": [
-    {
-     "type": "model",
-     "prompt": "Phân loại bug \"{input.title}\": severity, area khả dĩ, câu hỏi cần hỏi reporter, repro tối thiểu."
-    },
-    {
-     "type": "tool",
-     "tool": "prod.create_task",
-     "argsTemplate": {}
-    },
-    {
-     "type": "note"
-    }
-   ]
-  },
-  {
-   "id": "incident-brief",
-   "name": "Incident Brief",
-   "description": "Brief sự cố cho on-call trong 60 giây.",
-   "icon": "🚨",
-   "tags": [
-    "ai",
-    "tools"
-   ],
-   "inputs": [
-    {
-     "key": "service",
-     "label": "Service gặp sự cố",
-     "placeholder": "checkout-api"
-    }
-   ],
-   "steps": [
-    {
-     "type": "tool",
-     "tool": "ops.logs_tail",
-     "argsTemplate": {
-      "lines": 50
-     }
-    },
-    {
-     "type": "tool",
-     "tool": "ops.kubectl_get",
-     "argsTemplate": {
-      "resource": "pods"
-     }
-    },
-    {
-     "type": "model",
-     "prompt": "Viết incident brief: timeline, triệu chứng, giả thuyết gốc rễ (xếp hạng), hành động tiếp theo.\n\n{observations}"
-    }
-   ]
-  },
-  {
-   "id": "doc-writer",
-   "name": "Doc Writer",
-   "description": "Viết tài liệu README/API từ source hiện có.",
-   "icon": "✍️",
-   "tags": [
-    "ai",
-    "tools"
-   ],
-   "inputs": [
-    {
-     "key": "topic",
-     "label": "Chủ đề tài liệu",
-     "placeholder": "Getting started"
-    }
-   ],
-   "steps": [
-    {
-     "type": "tool",
-     "tool": "fs.read_file",
-     "argsTemplate": {
-      "path": "README.md"
-     }
-    },
-    {
-     "type": "model",
-     "prompt": "Viết tài liệu dạng markdown cho \"{input.topic}\" dựa trên ngữ liệu; có mục TL;DR, ví dụ copy-chạy-ngay, FAQ.\n\n{observations}"
-    }
-   ]
-  },
-  {
-   "id": "sql-explain",
-   "name": "Sql Explain",
-   "description": "Phân tích & tối ưu câu SQL chậm.",
-   "icon": "🧮",
-   "tags": [
-    "ai",
-    "tools"
-   ],
-   "inputs": [
-    {
-     "key": "sql",
-     "label": "Câu SQL",
-     "placeholder": "SELECT * FROM orders WHERE created_at > now() - interval '7 days'"
-    }
-   ],
-   "steps": [
-    {
-     "type": "tool",
-     "tool": "db.explain_query",
-     "argsTemplate": {}
-    },
-    {
-     "type": "model",
-     "prompt": "Giải thích kế hoạch thực thi, chỉ ra full-scan/index thiếu, viết lại SQL tối ưu + đề xuất index DDL.\n\n{observations}"
-    }
-   ]
-  },
-  {
-   "id": "log-analyzer",
-   "name": "Log Analyzer",
-   "description": "Rà log tìm pattern lỗi và đề xuất fix.",
-   "icon": "🧾",
-   "tags": [
-    "ai",
-    "tools"
-   ],
-   "inputs": [
-    {
-     "key": "lines",
-     "label": "Số dòng log quét",
-     "placeholder": "200"
-    }
-   ],
-   "steps": [
-    {
-     "type": "tool",
-     "tool": "ops.logs_tail",
-     "argsTemplate": {}
-    },
-    {
-     "type": "model",
-     "prompt": "Nhóm lỗi theo signature, ước lượng tần suất, đánh dấu anomaly, đề xuất action mỗi nhóm.\n\n{observations}"
-    }
-   ]
-  },
-  {
-   "id": "release-notes",
-   "name": "Release Notes",
-   "description": "Release notes thân thiện người dùng từ diff.",
-   "icon": "🏷️",
-   "tags": [
-    "ai",
-    "tools"
-   ],
-   "inputs": [
-    {
-     "key": "version",
-     "label": "Phiên bản phát hành",
-     "placeholder": "v1.2.0"
-    }
-   ],
-   "steps": [
-    {
-     "type": "tool",
-     "tool": "git.log",
-     "argsTemplate": {
-      "limit": 40
-     }
-    },
-    {
-     "type": "model",
-     "prompt": "Soạn release notes {input.version}: highlights 3 bullet, chi tiết theo nhóm, credit contributors.\n\n{observations}"
-    }
-   ]
-  },
-  {
-   "id": "test-gap-analysis",
-   "name": "Test Gap Analysis",
-   "description": "Tìm khoảng trống test từ cấu trúc repo.",
-   "icon": "🕳️",
-   "tags": [
-    "ai",
-    "tools"
+    "tools",
+    "luau"
    ],
    "inputs": [
     {
      "key": "path",
-     "label": "Thư mục source",
-     "placeholder": "src/"
+     "label": "File hoặc thư mục Luau",
+     "placeholder": "workspace"
     }
    ],
    "steps": [
     {
      "type": "tool",
-     "tool": "fs.tree",
+     "server": "luau-lsp",
+     "tool": "luau_analyze",
      "argsTemplate": {
-      "depth": 2
+      "path": "{input.path}"
      }
     },
     {
      "type": "model",
-     "prompt": "Liệt kê module rủi ro nhất chưa có test, đề xuất test case ưu tiên (given/when/then).\n\n{observations}"
+     "prompt": "Bạn là chuyên gia Luau. Từ output luau-lsp analyze dưới đây, nhóm chẩn đoán theo mức (blocker/warning/nit), giải thích nguyên nhân từng nhóm và viết cách sửa cụ thể kèm ví dụ code.\n\nĐƯỜNG DẪN: {input.path}\n{observations}"
     }
    ]
   },
   {
-   "id": "dep-audit",
-   "name": "Dep Audit",
-   "description": "Audit phụ thuộc: CVE + license.",
-   "icon": "🔐",
+   "id": "luau-snippet-review",
+   "name": "Luau Snippet Review",
+   "description": "Dán một đoạn Luau → kiểm tra kiểu thật + review chất lượng.",
+   "icon": "blade/adjust",
    "tags": [
     "ai",
-    "tools"
+    "tools",
+    "luau"
    ],
    "inputs": [
     {
-     "key": "manifest",
-     "label": "File manifest",
-     "placeholder": "package.json"
+     "key": "source",
+     "label": "Đoạn code Luau",
+     "placeholder": "--!strict\nlocal function add(a: number, b: number): number\n\treturn a + b\nend\n\nprint(add(\"x\", 2))"
     }
    ],
    "steps": [
     {
      "type": "tool",
-     "tool": "fs.read_file",
+     "server": "luau-lsp",
+     "tool": "luau_check_source",
      "argsTemplate": {
-      "path": "package.json"
-     }
-    },
-    {
-     "type": "tool",
-     "tool": "sec.vuln_lookup",
-     "argsTemplate": {}
-    },
-    {
-     "type": "model",
-     "prompt": "Bảng dependency→risk→fix version, tổng kết license rủi ro.\n\n{observations}"
-    }
-   ]
-  },
-  {
-   "id": "perf-profile-plan",
-   "name": "Perf Profile Plan",
-   "description": "Kế hoạch profile hiệu năng một service.",
-   "icon": "⏱️",
-   "tags": [
-    "ai",
-    "tools"
-   ],
-   "inputs": [
-    {
-     "key": "service",
-     "label": "Service",
-     "placeholder": "web-api"
-    }
-   ],
-   "steps": [
-    {
-     "type": "model",
-     "prompt": "Lập kế hoạch profile {input.service}: metric cần thu, tool (flame/cgroup/db), kịch bản load, tiêu chí cải thiện."
-    },
-    {
-     "type": "tool",
-     "tool": "ops.logs_tail",
-     "argsTemplate": {
-      "lines": 20
-     }
-    }
-   ]
-  },
-  {
-   "id": "seo-content-brief",
-   "name": "Seo Content Brief",
-   "description": "Brief bài SEO chuẩn E-E-A-T.",
-   "icon": "📝",
-   "tags": [
-    "ai",
-    "tools"
-   ],
-   "inputs": [
-    {
-     "key": "keyword",
-     "label": "Từ khóa chính",
-     "placeholder": "mcp executor mobile"
-    }
-   ],
-   "steps": [
-    {
-     "type": "tool",
-     "tool": "search.web",
-     "argsTemplate": {
-      "limit": 5
+      "source": "{input.source}",
+      "filename": "review.luau"
      }
     },
     {
      "type": "model",
-     "prompt": "Từ SERP giả lập, viết brief: H2/H3, intent, entity cần nhắc, internal link gợi ý.\n\n{observations}"
+     "prompt": "Dựa trên chẩn đoán THẬT của luau-lsp dưới đây, viết review: (1) lỗi kiểu và cách sửa, (2) rủi ro runtime, (3) bản viết lại sạch hơn có type annotation đầy đủ.\n\n{observations}"
     }
    ]
   },
   {
-   "id": "data-quality-check",
-   "name": "Data Quality Check",
-   "description": "Kiểm chất lượng dataset trước khi train/báo cáo.",
-   "icon": "🧪",
+   "id": "luau-symbol-map",
+   "name": "Luau Symbol Map",
+   "description": "Lập bản đồ symbol + require-graph của project Luau.",
+   "icon": "solar/pin",
    "tags": [
     "ai",
-    "tools"
+    "tools",
+    "luau"
    ],
    "inputs": [
     {
-     "key": "dataset",
-     "label": "Tên dataset",
-     "placeholder": "orders_2024"
+     "key": "path",
+     "label": "Thư mục project",
+     "placeholder": "workspace"
+    },
+    {
+     "key": "file",
+     "label": "File chính",
+     "placeholder": "workspace/init.luau"
     }
    ],
    "steps": [
     {
      "type": "tool",
-     "tool": "etl.validate_schema",
-     "argsTemplate": {}
+     "server": "luau-lsp",
+     "tool": "luau_require_graph",
+     "argsTemplate": {
+      "path": "{input.path}"
+     }
     },
     {
      "type": "tool",
-     "tool": "etl.profile_column",
+     "server": "luau-lsp",
+     "tool": "luau_document_symbols",
      "argsTemplate": {
-      "column": "amount"
+      "file": "{input.file}",
+      "root": "{input.path}"
      }
     },
     {
      "type": "model",
-     "prompt": "Báo cáo chất lượng: missing/outlier/leakage, verdict dùng được hay không.\n\n{observations}"
+     "prompt": "Từ require-graph và danh sách symbol thật dưới đây, mô tả kiến trúc module: ai phụ thuộc ai, module nào là hub, chỗ nào có nguy cơ circular require, đề xuất tách module.\n\n{observations}"
     }
    ]
   },
   {
-   "id": "etl-rehearsal",
-   "name": "Etl Rehearsal",
-   "description": "Diễn tập pipeline ETL dry-run.",
-   "icon": "🎭",
+   "id": "luau-hover-explain",
+   "name": "Luau Hover Explain",
+   "description": "Giải thích kiểu tại một vị trí con trỏ bằng hover thật.",
+   "icon": "blade/sparkles",
    "tags": [
     "ai",
-    "tools"
+    "tools",
+    "luau"
    ],
    "inputs": [
     {
-     "key": "pipeline",
-     "label": "Pipeline",
-     "placeholder": "nightly-sync"
+     "key": "file",
+     "label": "File Luau",
+     "placeholder": "workspace/init.luau"
+    },
+    {
+     "key": "line",
+     "label": "Dòng",
+     "placeholder": "1"
+    },
+    {
+     "key": "character",
+     "label": "Cột",
+     "placeholder": "1"
     }
    ],
    "steps": [
     {
      "type": "tool",
-     "tool": "etl.run_pipeline",
+     "server": "luau-lsp",
+     "tool": "luau_hover",
      "argsTemplate": {
-      "dryRun": true
+      "file": "{input.file}",
+      "line": "{input.line}",
+      "character": "{input.character}"
+     }
+    },
+    {
+     "type": "tool",
+     "server": "luau-lsp",
+     "tool": "luau_definition",
+     "argsTemplate": {
+      "file": "{input.file}",
+      "line": "{input.line}",
+      "character": "{input.character}"
      }
     },
     {
      "type": "model",
-     "prompt": "Đánh giá dry-run: khối lượng, rủi ro idempotency, điểm cắt nếu fail giữa chừng.\n\n{observations}"
+     "prompt": "Giải thích cho người mới: kiểu này nghĩa là gì, nó đến từ đâu (theo definition thật), dùng sai kiểu nào hay gặp.\n\n{observations}"
     }
    ]
   },
   {
-   "id": "alert-triage",
-   "name": "Alert Triage",
-   "description": "Xử lý đống alert: gộp, im lặng, leo thang.",
-   "icon": "🔔",
+   "id": "lsp-workspace-health",
+   "name": "Lsp Workspace Health",
+   "description": "Khám sức khoẻ codebase qua LSP: diagnostics toàn workspace.",
+   "icon": "solar/activity",
    "tags": [
     "ai",
-    "tools"
+    "tools",
+    "lsp"
    ],
    "inputs": [
     {
-     "key": "window",
-     "label": "Cửa sổ thời gian",
-     "placeholder": "last 1h"
+     "key": "root",
+     "label": "Thư mục gốc project",
+     "placeholder": "workspace"
     }
    ],
    "steps": [
     {
      "type": "tool",
-     "tool": "ops.logs_tail",
+     "server": "lsp-universal",
+     "tool": "lsp_init",
      "argsTemplate": {
-      "lines": 80
+      "root": "{input.root}"
      }
     },
     {
-     "type": "model",
-     "prompt": "Gộp alert theo nguyên nhân, đề xuất silence nào hợp lệ, cái nào phải escalate ngay.\n\n{observations}"
-    }
-   ]
-  },
-  {
-   "id": "ux-copy-review",
-   "name": "Ux Copy Review",
-   "description": "Rà soát UX copy sản phẩm.",
-   "icon": "💬",
-   "tags": [
-    "ai",
-    "tools"
-   ],
-   "inputs": [
-    {
-     "key": "screen",
-     "label": "Màn hình",
-     "placeholder": "onboarding"
-    }
-   ],
-   "steps": [
-    {
-     "type": "model",
-     "prompt": "Review copy màn hình {input.screen}: rõ ràng, đúng voice&tone, đề xuất 3 biến thể A/B."
-    },
-    {
      "type": "tool",
-     "tool": "prod.create_task",
-     "argsTemplate": {}
-    }
-   ]
-  },
-  {
-   "id": "meeting-notes-to-tasks",
-   "name": "Meeting Notes To Tasks",
-   "description": "Biên bản họp → danh sách task có owner.",
-   "icon": "📌",
-   "tags": [
-    "ai",
-    "tools"
-   ],
-   "inputs": [
-    {
-     "key": "notes",
-     "label": "Biên bản thô",
-     "placeholder": "...dán biên bản vào đây..."
-    }
-   ],
-   "steps": [
-    {
-     "type": "model",
-     "prompt": "Trích quyết định + action item (owner, deadline) từ biên bản."
-    },
-    {
-     "type": "tool",
-     "tool": "prod.create_task",
-     "argsTemplate": {}
-    },
-    {
-     "type": "note"
-    }
-   ]
-  },
-  {
-   "id": "inbox-zero-plan",
-   "name": "Inbox Zero Plan",
-   "description": "Kế hoạch dọn hộp thư đến 15 phút.",
-   "icon": "📬",
-   "tags": [
-    "ai",
-    "tools"
-   ],
-   "inputs": [
-    {
-     "key": "limit",
-     "label": "Số mail quét",
-     "placeholder": "20"
-    }
-   ],
-   "steps": [
-    {
-     "type": "tool",
-     "tool": "msg.fetch_inbox",
-     "argsTemplate": {}
-    },
-    {
-     "type": "model",
-     "prompt": "Phân loại: trả ngay/hoãn/hủy đăng ký; soạn reply mẫu cho nhóm trả ngay.\n\n{observations}"
-    }
-   ]
-  },
-  {
-   "id": "social-calendar",
-   "name": "Social Calendar",
-   "description": "Lịch nội dung mạng xã hội 2 tuần.",
-   "icon": "🗓️",
-   "tags": [
-    "ai",
-    "tools"
-   ],
-   "inputs": [
-    {
-     "key": "brand",
-     "label": "Thương hiệu",
-     "placeholder": "upio"
-    }
-   ],
-   "steps": [
-    {
-     "type": "model",
-     "prompt": "Tạo lịch 14 ngày cho {input.brand}: theme, caption, hashtag, giờ đăng tối ưu."
-    },
-    {
-     "type": "tool",
-     "tool": "msg.broadcast",
-     "argsTemplate": {}
-    }
-   ]
-  },
-  {
-   "id": "market-pulse",
-   "name": "Market Pulse",
-   "description": "Nhận tín hiệu thị trường theo từ khóa.",
-   "icon": "📡",
-   "tags": [
-    "ai",
-    "tools"
-   ],
-   "inputs": [
-    {
-     "key": "keyword",
-     "label": "Lĩnh vực",
-     "placeholder": "AI agents"
-    }
-   ],
-   "steps": [
-    {
-     "type": "tool",
-     "tool": "search.news",
+     "server": "lsp-universal",
+     "tool": "lsp_health",
      "argsTemplate": {}
     },
     {
      "type": "tool",
-     "tool": "search.trends",
+     "server": "lsp-universal",
+     "tool": "lsp_diagnostics",
      "argsTemplate": {}
     },
     {
      "type": "model",
-     "prompt": "Tổng hợp pulse: 5 tín hiệu đáng chú ý, cơ hội/rủi ro, khuyến nghị theo dõi.\n\n{observations}"
+     "prompt": "Từ trạng thái language server và diagnostics THẬT dưới đây, viết báo cáo sức khoẻ: số lỗi/cảnh báo theo file, 5 việc cần sửa trước, ngôn ngữ nào chưa có LSP nên cài thêm.\n\n{observations}"
     }
    ]
   },
   {
-   "id": "portfolio-report",
-   "name": "Portfolio Report",
-   "description": "Báo cáo danh mục đầu tư định kỳ.",
-   "icon": "💼",
+   "id": "lsp-symbol-hunt",
+   "name": "Lsp Symbol Hunt",
+   "description": "Truy tìm một symbol khắp codebase: định nghĩa + mọi nơi dùng.",
+   "icon": "blade/filter",
    "tags": [
     "ai",
-    "tools"
+    "tools",
+    "lsp"
    ],
    "inputs": [
     {
-     "key": "account",
-     "label": "Tài khoản",
+     "key": "root",
+     "label": "Thư mục gốc",
+     "placeholder": "workspace"
+    },
+    {
+     "key": "query",
+     "label": "Tên symbol cần tìm",
      "placeholder": "main"
     }
    ],
    "steps": [
     {
      "type": "tool",
-     "tool": "fin.portfolio_summary",
-     "argsTemplate": {}
+     "server": "lsp-universal",
+     "tool": "lsp_init",
+     "argsTemplate": {
+      "root": "{input.root}"
+     }
     },
     {
      "type": "tool",
-     "tool": "fin.quote",
+     "server": "lsp-universal",
+     "tool": "lsp_workspace_symbols",
      "argsTemplate": {
-      "symbol": "BTC-USD"
+      "query": "{input.query}"
      }
     },
     {
      "type": "model",
-     "prompt": "Viết báo cáo: allocation, P/L, drift so với mục tiêu, 3 hành động.\n\n{observations}"
+     "prompt": "Tổng hợp: symbol \"{input.query}\" được định nghĩa ở đâu, các biến thể trùng tên, gợi ý đổi tên an toàn nếu cần.\n\n{observations}"
     }
    ]
   },
   {
-   "id": "expense-categorize",
-   "name": "Expense Categorize",
-   "description": "Phân loại chi tiêu & tìm mục lạ.",
-   "icon": "🧾",
+   "id": "lsp-refactor-plan",
+   "name": "Lsp Refactor Plan",
+   "description": "Lập kế hoạch refactor an toàn dựa trên references thật.",
+   "icon": "solar/wrench",
    "tags": [
     "ai",
-    "tools"
+    "tools",
+    "lsp"
    ],
    "inputs": [
     {
-     "key": "txs",
-     "label": "Số giao dịch",
-     "placeholder": "30"
-    }
-   ],
-   "steps": [
-    {
-     "type": "tool",
-     "tool": "fin.expense_categorize",
-     "argsTemplate": {}
+     "key": "file",
+     "label": "File cần refactor",
+     "placeholder": "workspace/init.luau"
     },
     {
-     "type": "model",
-     "prompt": "Nhóm chi tiêu, phát hiện giao dịch bất thường, ngân sách đề xuất tháng sau.\n\n{observations}"
-    }
-   ]
-  },
-  {
-   "id": "geo-route-plan",
-   "name": "Geo Route Plan",
-   "description": "Lập lộ trình đa điểm tiết kiệm nhất.",
-   "icon": "🚗",
-   "tags": [
-    "ai",
-    "tools"
-   ],
-   "inputs": [
+     "key": "line",
+     "label": "Dòng symbol",
+     "placeholder": "1"
+    },
     {
-     "key": "stops",
-     "label": "Các điểm dừng",
-     "placeholder": "Nhà, Văn phòng, Siêu thị"
+     "key": "character",
+     "label": "Cột symbol",
+     "placeholder": "1"
+    },
+    {
+     "key": "root",
+     "label": "Thư mục gốc",
+     "placeholder": "workspace"
     }
    ],
    "steps": [
     {
      "type": "tool",
-     "tool": "geo.route",
+     "server": "lsp-universal",
+     "tool": "lsp_init",
      "argsTemplate": {
-      "mode": "driving"
+      "root": "{input.root}"
+     }
+    },
+    {
+     "type": "tool",
+     "server": "lsp-universal",
+     "tool": "lsp_references",
+     "argsTemplate": {
+      "file": "{input.file}",
+      "line": "{input.line}",
+      "character": "{input.character}"
+     }
+    },
+    {
+     "type": "tool",
+     "server": "lsp-universal",
+     "tool": "lsp_code_action",
+     "argsTemplate": {
+      "file": "{input.file}",
+      "line": "{input.line}",
+      "character": "{input.character}"
      }
     },
     {
      "type": "model",
-     "prompt": "Trình tự tối ưu, ETA từng chặng, phương án dự phòng trời mưa.\n\n{observations}"
+     "prompt": "Dựa trên danh sách references THẬT và code action khả dụng, lập kế hoạch refactor từng bước, nêu rủi ro breaking và thứ tự sửa file an toàn.\n\n{observations}"
     }
    ]
   },
   {
-   "id": "smart-home-scene",
-   "name": "Smart Home Scene",
-   "description": "Thiết kế kịch bản nhà thông minh buổi tối.",
-   "icon": "🌙",
+   "id": "lsp-api-surface",
+   "name": "Lsp Api Surface",
+   "description": "Trích bề mặt API công khai của một file (exports/imports thật).",
+   "icon": "blade/send",
    "tags": [
     "ai",
-    "tools"
+    "tools",
+    "lsp"
    ],
    "inputs": [
     {
-     "key": "scene",
-     "label": "Tên kịch bản",
-     "placeholder": "movie-night"
+     "key": "file",
+     "label": "File cần soi",
+     "placeholder": "workspace/init.luau"
     }
    ],
    "steps": [
     {
      "type": "tool",
-     "tool": "iot.device_list",
-     "argsTemplate": {}
+     "server": "lsp-bridge",
+     "tool": "lsp_file_exports",
+     "argsTemplate": {
+      "file_path": "{input.file}"
+     }
     },
     {
      "type": "tool",
-     "tool": "iot.scene_activate",
-     "argsTemplate": {}
+     "server": "lsp-bridge",
+     "tool": "lsp_file_imports",
+     "argsTemplate": {
+      "file_path": "{input.file}"
+     }
     },
     {
      "type": "model",
-     "prompt": "Mô tả trạng thái từng thiết bị trong kịch bản và điều kiện kích hoạt.\n\n{observations}"
+     "prompt": "Viết tài liệu API cho file này: mỗi export gồm chữ ký, mục đích, ví dụ dùng; liệt kê dependency và cảnh báo coupling.\n\n{observations}"
     }
    ]
   },
   {
-   "id": "media-transcode-plan",
-   "name": "Media Transcode Plan",
-   "description": "Kế hoạch chuyển mã loạt video cho mobile.",
-   "icon": "🎞️",
+   "id": "roblox-script-audit",
+   "name": "Roblox Script Audit",
+   "description": "Rà toàn bộ script trong Roblox client rồi đánh giá rủi ro.",
+   "icon": "blade/bolt",
    "tags": [
     "ai",
-    "tools"
+    "tools",
+    "roblox"
    ],
    "inputs": [
     {
-     "key": "folder",
-     "label": "Thư mục nguồn",
-     "placeholder": "/media/raw"
-    }
-   ],
-   "steps": [
-    {
-     "type": "tool",
-     "tool": "media.metadata",
-     "argsTemplate": {}
-    },
-    {
-     "type": "model",
-     "prompt": "Bảng file→preset phù hợp mobile (codec/bitrate/resolution), ước lượng dung lượng sau chuyển.\n\n{observations}"
-    }
-   ]
-  },
-  {
-   "id": "backup-drill",
-   "name": "Backup Drill",
-   "description": "Diễn tập khôi phục backup an toàn.",
-   "icon": "💾",
-   "tags": [
-    "ai",
-    "tools"
-   ],
-   "inputs": [
-    {
-     "key": "database",
-     "label": "Database",
-     "placeholder": "prod-core"
+     "key": "pattern",
+     "label": "Từ khoá script-grep",
+     "placeholder": "HttpService"
     }
    ],
    "steps": [
     {
      "type": "tool",
-     "tool": "db.backup",
+     "server": "roblox-executor",
+     "tool": "list-clients",
      "argsTemplate": {}
     },
     {
+     "type": "tool",
+     "server": "roblox-executor",
+     "tool": "script-grep",
+     "argsTemplate": {
+      "pattern": "{input.pattern}"
+     }
+    },
+    {
      "type": "model",
-     "prompt": "Checklist drill restore: RTO/RPO mục tiêu, bước verify integrity, rollback.\n\n{observations}"
+     "prompt": "Từ danh sách client và kết quả grep THẬT, đánh giá: script nào rủi ro (remote không kiểm tra, HttpService lộ key), thứ tự cần sửa, snippet Luau vá lỗi.\n\n{observations}"
     }
    ]
   },
   {
-   "id": "secret-rotation-checkup",
-   "name": "Secret Rotation Checkup",
-   "description": "Kiểm tra lịch xoay secrets.",
-   "icon": "🔄",
+   "id": "roblox-studio-inspect",
+   "name": "Roblox Studio Inspect",
+   "description": "Chụp toàn cảnh DataModel Studio và soi cấu trúc game.",
+   "icon": "solar/house",
    "tags": [
     "ai",
-    "tools"
+    "tools",
+    "roblox"
    ],
    "inputs": [
     {
-     "key": "scope",
-     "label": "Phạm vi",
-     "placeholder": "all services"
+     "key": "instance",
+     "label": "Đường dẫn instance",
+     "placeholder": "game.Workspace"
     }
    ],
    "steps": [
     {
      "type": "tool",
-     "tool": "sec.acl_check",
+     "server": "roblox-studio",
+     "tool": "system_info",
      "argsTemplate": {}
-    },
-    {
-     "type": "model",
-     "prompt": "Bảng secret→tuổi→việc cần xoay, thứ tự xoay an toàn không downtime.\n\n{observations}"
-    }
-   ]
-  },
-  {
-   "id": "threat-model-lite",
-   "name": "Threat Model Lite",
-   "description": "Threat modeling nhanh cho feature mới.",
-   "icon": "🎯",
-   "tags": [
-    "ai",
-    "tools"
-   ],
-   "inputs": [
-    {
-     "key": "feature",
-     "label": "Feature",
-     "placeholder": "mobile login"
-    }
-   ],
-   "steps": [
-    {
-     "type": "model",
-     "prompt": "STRIPPED-down STRIDE: asset, mối đe dọa top-5, control đề xuất, mức ưu tiên."
     },
     {
      "type": "tool",
-     "tool": "sec.vuln_lookup",
+     "server": "roblox-studio",
+     "tool": "scene_overview",
      "argsTemplate": {}
-    }
-   ]
-  },
-  {
-   "id": "compliance-checklist",
-   "name": "Compliance Checklist",
-   "description": "Checklist tuân thủ GDPR/ISO cho dự án nhỏ.",
-   "icon": "📋",
-   "tags": [
-    "ai",
-    "prompt"
-   ],
-   "inputs": [
-    {
-     "key": "project",
-     "label": "Dự án",
-     "placeholder": "upio harness"
-    }
-   ],
-   "steps": [
-    {
-     "type": "model",
-     "prompt": "Checklist theo nhóm: dữ liệu cá nhân, retention, DPIA cần hay không, bằng chứng cần lưu."
     },
     {
-     "type": "note"
-    }
-   ]
-  },
-  {
-   "id": "prompt-lab",
-   "name": "Prompt Lab",
-   "description": "Thí nghiệm biến thể prompt cho một nhiệm vụ.",
-   "icon": "🧪",
-   "tags": [
-    "ai",
-    "tools"
-   ],
-   "inputs": [
-    {
-     "key": "goal",
-     "label": "Nhiệm vụ",
-     "placeholder": "tóm tắt cuộc họp"
-    }
-   ],
-   "steps": [
-    {
      "type": "model",
-     "prompt": "Sinh 5 biến thể prompt cho goal \"{input.goal}\", mỗi biến thể kèm trade-off và rubric chấm."
-    },
-    {
-     "type": "tool",
-     "tool": "ai.generate_text",
-     "argsTemplate": {}
+     "prompt": "Dựa vào scene overview THẬT: mô tả cấu trúc game, chỉ ra thứ đặt sai chỗ (script trong ReplicatedStorage vs ServerScriptService), đề xuất dọn dẹp.\n\n{observations}"
     }
    ]
   },
   {
-   "id": "model-eval-harness",
-   "name": "Model Eval Harness",
-   "description": "Thiết kế bộ đánh giá model nội bộ.",
-   "icon": "📐",
+   "id": "luau-lint-config",
+   "name": "Luau Lint Config",
+   "description": "Đọc FFlag/rule Luau đang bật rồi đề xuất cấu hình lint.",
+   "icon": "solar/settings",
    "tags": [
     "ai",
-    "tools"
+    "tools",
+    "luau"
    ],
    "inputs": [
     {
-     "key": "usecase",
-     "label": "Use case",
-     "placeholder": "support bot"
-    }
-   ],
-   "steps": [
-    {
-     "type": "model",
-     "prompt": "Thiết kế eval: tập ca thử, metric (accuracy/latency/cost), quy trình chấm, ngưỡng hồi quy."
-    },
-    {
-     "type": "tool",
-     "tool": "ai.classify",
-     "argsTemplate": {}
-    }
-   ]
-  },
-  {
-   "id": "agent-debrief",
-   "name": "Agent Debrief",
-   "description": "Rút kinh nghiệm sau mỗi lần agent chạy dài.",
-   "icon": "🧑‍✈️",
-   "tags": [
-    "ai",
-    "prompt"
-   ],
-   "inputs": [
-    {
-     "key": "agentRun",
-     "label": "Run cần debrief",
-     "placeholder": "ag-last"
-    }
-   ],
-   "steps": [
-    {
-     "type": "model",
-     "prompt": "Debrief: quyết định nào tốn token vô ích, tool nên thêm, policy cần siết."
-    },
-    {
-     "type": "note"
-    }
-   ]
-  },
-  {
-   "id": "knowledge-distill",
-   "name": "Knowledge Distill",
-   "description": "Nén tài liệu dài thành flashcard học nhanh.",
-   "icon": "💧",
-   "tags": [
-    "ai",
-    "tools"
-   ],
-   "inputs": [
-    {
-     "key": "topic",
-     "label": "Chủ đề",
-     "placeholder": "MCP protocol"
+     "key": "filter",
+     "label": "Lọc theo tên flag (rỗng = tất cả)",
+     "placeholder": "Luau"
     }
    ],
    "steps": [
     {
      "type": "tool",
-     "tool": "ai.summarize",
+     "server": "luau-lsp",
+     "tool": "luau_lint_rules",
+     "argsTemplate": {
+      "filter": "{input.filter}"
+     }
+    },
+    {
+     "type": "tool",
+     "server": "luau-lsp",
+     "tool": "luau_version",
      "argsTemplate": {}
     },
     {
      "type": "model",
-     "prompt": "Tạo 10 flashcard Q/A + 1 sơ đồ chữ về {input.topic}.\n\n{observations}"
+     "prompt": "Từ danh sách flag THẬT, đề xuất file .luaurc + luau-lsp settings cho project production: rule nào bật, rule nào tắt, vì sao.\n\n{observations}"
     }
    ]
   },
   {
-   "id": "weekly-digest",
-   "name": "Weekly Digest",
-   "description": "Digest cá nhân cuối tuần.",
-   "icon": "📰",
+   "id": "workspace-luau-scan",
+   "name": "Workspace Luau Scan",
+   "description": "Quét workspace tìm file Luau rồi type-check hàng loạt.",
+   "icon": "solar/folder",
    "tags": [
     "ai",
-    "tools"
+    "tools",
+    "workspace"
    ],
    "inputs": [
     {
-     "key": "interests",
-     "label": "Sở thích",
-     "placeholder": "devtools, AI, mobile"
+     "key": "dir",
+     "label": "Thư mục cần quét",
+     "placeholder": "workspace"
     }
    ],
    "steps": [
     {
      "type": "tool",
-     "tool": "search.news",
-     "argsTemplate": {}
-    },
-    {
-     "type": "model",
-     "prompt": "Chọn 7 món đáng đọc cho người thích {input.interests}, 1 câu vì sao đáng đọc mỗi món.\n\n{observations}"
-    }
-   ]
-  },
-  {
-   "id": "idea-backlog-triage",
-   "name": "Idea Backlog Triage",
-   "description": "Sàng lọc backlog ý tưởng theo impact/effort.",
-   "icon": "🗂️",
-   "tags": [
-    "ai",
-    "tools"
-   ],
-   "inputs": [
-    {
-     "key": "count",
-     "label": "Số idea",
-     "placeholder": "12"
-    }
-   ],
-   "steps": [
-    {
-     "type": "model",
-     "prompt": "Chấm impact/effort thang 1-5 cho {input.count} idea mẫu, xuất ma trận prioritize."
+     "server": "mcp-filesystem",
+     "tool": "search_files",
+     "argsTemplate": {
+      "path": "{input.dir}",
+      "pattern": "*.luau"
+     }
     },
     {
      "type": "tool",
-     "tool": "prod.update_sheet",
-     "argsTemplate": {}
-    }
-   ]
-  },
-  {
-   "id": "sprint-planner",
-   "name": "Sprint Planner",
-   "description": "Lập kế hoạch sprint từ backlog.",
-   "icon": "🏃",
-   "tags": [
-    "ai",
-    "tools"
-   ],
-   "inputs": [
-    {
-     "key": "capacity",
-     "label": "Điểm capacity",
-     "placeholder": "24"
-    }
-   ],
-   "steps": [
-    {
-     "type": "tool",
-     "tool": "prod.list_tasks",
-     "argsTemplate": {}
+     "server": "luau-lsp",
+     "tool": "luau_analyze",
+     "argsTemplate": {
+      "path": "{input.dir}"
+     }
     },
     {
      "type": "model",
-     "prompt": "Chọn scope sprint theo capacity {input.capacity}, nêu rủi ro cam kết và thứ tự ưu tiên.\n\n{observations}"
-    }
-   ]
-  },
-  {
-   "id": "retro-analyzer",
-   "name": "Retro Analyzer",
-   "description": "Phân tích retrospective đội nhóm.",
-   "icon": "🔄",
-   "tags": [
-    "ai",
-    "tools"
-   ],
-   "inputs": [
-    {
-     "key": "notes",
-     "label": "Notes retro",
-     "placeholder": "..."
-    }
-   ],
-   "steps": [
-    {
-     "type": "model",
-     "prompt": "Nhóm nhận xét theo theme, phát hiện pattern 3 kỳ liên tiếp, 1 thí nghiệm cải thiện cho sprint tới."
-    },
-    {
-     "type": "tool",
-     "tool": "prod.create_task",
-     "argsTemplate": {}
-    }
-   ]
-  },
-  {
-   "id": "interview-prep",
-   "name": "Interview Prep",
-   "description": "Chuẩn bị phỏng vấn kỹ thuật theo JD.",
-   "icon": "🎤",
-   "tags": [
-    "ai",
-    "tools"
-   ],
-   "inputs": [
-    {
-     "key": "role",
-     "label": "Vị trí",
-     "placeholder": "Senior Backend (Node.js)"
-    }
-   ],
-   "steps": [
-    {
-     "type": "model",
-     "prompt": "Sinh 12 câu hỏi theo độ sâu cho \"{input.role}\" + gợi ý trả lời STAR và code talk-through."
-    },
-    {
-     "type": "tool",
-     "tool": "ai.generate_text",
-     "argsTemplate": {}
+     "prompt": "Kết hợp danh sách file thật và chẩn đoán thật: bảng file → số lỗi → mức ưu tiên sửa, kèm nhận định về chất lượng tổng thể project.\n\n{observations}"
     }
    ]
   },
   {
    "id": "env-doctor",
    "name": "Env Doctor",
-   "description": "Khám môi trường máy & tư vấn sửa.",
-   "icon": "🩺",
+   "description": "Khám môi trường máy (Node, luau-lsp, LSP đã cài) và tư vấn sửa.",
+   "icon": "solar/activity",
    "tags": [
     "ai",
-    "prompt"
+    "tools",
+    "workspace"
    ],
    "inputs": [],
    "steps": [
     {
-     "type": "note"
+     "type": "tool",
+     "server": "luau-lsp",
+     "tool": "luau_version",
+     "argsTemplate": {}
     },
     {
      "type": "model",
-     "prompt": "Bạn là SRE: đọc scan report dưới đây, xếp ưu tiên việc sửa môi trường, lệnh cụ thể từng bước.\n\n{observations}"
+     "prompt": "Bạn là SRE. Từ thông tin môi trường THẬT dưới đây, liệt kê việc cần làm để môi trường Luau/LSP hoàn chỉnh: binary còn thiếu, lệnh cài cụ thể cho Termux/Linux, thứ tự ưu tiên.\n\n{observations}"
     }
    ]
   }

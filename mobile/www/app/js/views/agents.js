@@ -121,9 +121,9 @@ export async function render(el) {
 
   el.innerHTML = `
   <div class="container">
-    <header class="hero">
-      <h1 class="hero-brand">${icon('solar/agents', 'ic-lg')} Agents</h1>
-      <p class="hero-sub">Spawn subagent runtime — vòng lặp plan → tool → observe → final</p>
+    <header class="oc-hero">
+      <div class="oc-wordmark">agents</div>
+      <div class="oc-statusline"><span class="oc-sl-item">plan → tool → observe → final</span></div>
     </header>
 
     <div class="segmented two" role="tablist" id="ag-seg">
@@ -140,7 +140,7 @@ export async function render(el) {
         </form>
       </section>
 
-      <h2 class="sec-title">Agents <span id="ag-count-badge" class="badge mini disconnected hidden"></span></h2>
+      <h2 class="oc-sec">Agents <span id="ag-count-badge" class="badge mini disconnected hidden"></span></h2>
       <section class="agent-list" id="agent-list">
         <div class="empty card pad"><div class="empty-ico">${icon('solar/agents', 'ic-lg')}</div><b>Chưa có agent nào</b><p class="dim">Spawn agent đầu tiên bằng form phía trên.</p></div>
       </section>
@@ -311,7 +311,7 @@ export async function render(el) {
         ${statusBadge(a.status)}</div></div>
       </div>
       <p class="sheet-desc">${esc(a.task)}</p>
-      ${a.answer != null && a.answer !== '' ? `<h4 class="sec-title" style="margin-top:14px">Kết quả cuối</h4>
+      ${a.answer != null && a.answer !== '' ? `<h4 class="oc-sec" style="margin-top:14px">Kết quả cuối</h4>
         <div class="answer-card md">${renderMarkdown(String(a.answer))}</div>` : ''}
       <div class="sheet-sec"><h4>Timeline (${steps.length} bước)</h4>
         <div id="ag-timeline">${steps.map((st) => stepBubbleHTML(st.i, st)).join('') ||

@@ -14,6 +14,11 @@ import { apply as i18nApply, autoTranslate, getLang, setLang } from './i18n.js';
 import * as chatView from './views/chat.js';
 import * as settingsView from './views/settings.js';
 
+// Module graph đã tải & parse xong → watchdog trong index.html KHÔNG được bật
+// chế độ tĩnh / banner offline nữa. Phải đặt NGAY tại top-level (không chờ init())
+// vì boot gate + navigate + refreshStatus tốn hơn 1.5s ngưỡng của watchdog.
+window.__UPIO_MODULES = true;
+
 // Re-export để mọi view chỉ cần import một đường từ '../app.js'
 export { api, connectEvents };
 export { chatCompletion } from './api.js';

@@ -119,6 +119,7 @@ export class EnvBuilder {
         ['pip', 'pip package manager', () => this.#checkPip()],
         ['git', 'Git CLI', () => this.#checkPresence('git', ['--version'], 'git')],
         ['curl', 'curl CLI', () => this.#checkPresence('curl', ['--version'], 'curl')],
+        ['luau-lsp', 'luau-lsp binary', () => this.#checkLuauLsp()],
         ['disk-space', 'Dung lượng đĩa', () => this.#checkDisk()],
         ['memory', 'Bộ nhớ khả dụng', () => this.#checkMemory()],
         ['port-free', `Cổng ${this.port}`, () => this.#checkPort()],
@@ -348,6 +349,32 @@ export class EnvBuilder {
     const ver = r.ok ? (text.match(/pip\s+(\d[\d.]*)/i)?.[1] || extractVersion(text)) : null;
     if (!r.ok) return { id: 'pip', label: 'pip package manager', status: 'warn', detail: 'pip/pip3 không tìm thấy (không bắt buộc)' };
     return { id: 'pip', label: 'pip package manager', status: 'pass', version: ver || undefined, detail: `pip ${ver || '(không đọc được version)'} (${via})` };
+  }
+
+  /**
+   * luau-lsp là tiến trình THẬT mà MCP server bundled (server/mcp/luau-mcp) bọc lại.
+   * Thiếu binary → luau-mcp phải fallback `npx -y luau-lsp` (~40s/lần gọi) nên chỉ 'warn',
+   * kèm hướng dẫn sửa cụ thể thay vì báo chung chung.
+   */
+  async #checkLuauLsp() {
+    const bin = process.env.LUAU_LSP_BIN || 'luau-lsp';
+    const r = await execTool(bin, ['--version']);
+    if (!r.ok) {
+      return {
+        id: 'luau-lsp',
+        label: 'luau-lsp binary',
+        status: 'warn',
+        detail: `${bin} không có trên PATH — MCP luau-lsp sẽ chạy qua npx (chậm). Sửa: npm i -g luau-lsp`,
+      };
+    }
+    const ver = extractVersion(`${r.stdout}\n${r.stderr}`);
+    return {
+      id: 'luau-lsp',
+      label: 'luau-lsp binary',
+      status: 'pass',
+      version: ver || undefined,
+      detail: `luau-lsp sẵn sàng${ver ? ` (${ver})` : ''} — MCP Luau chạy trực tiếp, không cần npx`,
+    };
   }
 
   async #checkPresence(cmd, args, name) {

@@ -18,7 +18,7 @@ const ROOT = path.resolve(__dirname, '..');
 const PORT = Number(process.env.PORT || 8787);
 const DATA_DIR = path.join(ROOT, 'data');
 const WEB_DIR = path.join(ROOT, 'web');
-const VERSION = '1.2.0';
+const VERSION = '1.3.0';
 const STARTED = Date.now();
 
 const MIME = {
@@ -37,6 +37,9 @@ await modelHub.init();
 const executor = new Executor({ dataDir: DATA_DIR, modelHub, rootDir: ROOT });
 await executor.init();
 executor.on('log', (p) => hub.broadcast('log', p));
+// tool-call + đổi trạng thái MCP → web Chat/Home dựng part 'tool' và cập nhật panel
+executor.on('mcp', (p) => hub.broadcast('mcp', p));
+executor.on('skill-run', (p) => hub.broadcast('skill-run', p));
 
 const envBuilder = new EnvBuilder({ dataDir: DATA_DIR, rootDir: ROOT, port: PORT });
 
@@ -70,38 +73,47 @@ async function autoBoot() {
     });
     mark('environment', 'ok', { ms: Date.now() - t0, detail: `${r.applied.length} thay đổi` });
 
-    // 2. Tự connect toàn bộ MCP builtin (stdio/http chờ cấu hình thủ công)
-    const builtins = executor.mcps({}).filter((m) => m.transport === 'builtin');
-    hub.broadcast('boot', { phase: 'booting', line: `🔌 Đang kết nối ${builtins.length} MCP servers…` });
+    // 2. TỰ ĐỘNG BẬT MCP EXECUTOR — mọi server có autoStart:true (đều là stdio thật).
+    //    Chạy SONG SONG và KHÔNG chặn boot: npx cold-start có thể mất hàng chục giây,
+    //    nên UI sẵn sàng ngay còn kết nối tiếp tục nền, báo tiến độ qua SSE.
+    const auto = executor.mcps({}).filter((m) => m.autoStart === true);
     const t1 = Date.now();
-    let okCount = 0;
-    for (let i = 0; i < builtins.length; i++) {
-      try { await executor.connect(builtins[i].id); okCount++; } catch { /* bỏ qua lỗi lẻ */ }
-      if ((i + 1) % 20 === 0 || i === builtins.length - 1) {
-        hub.broadcast('boot', { phase: 'booting', line: `🔌 ${i + 1}/${builtins.length} MCP đã kết nối` });
-      }
-    }
-    mark('connect-mcp', 'ok', { ms: Date.now() - t1, detail: `${okCount}/${builtins.length} servers` });
+    if (auto.length) {
+      hub.broadcast('boot', { phase: 'booting', line: `🔌 Tự bật ${auto.length} MCP executor…` });
+      mark('autostart-mcp', 'running', { detail: auto.map((m) => m.id).join(', ') });
+      bootState.autoStart = { total: auto.length, ok: 0, failed: [], done: false };
 
-    // 2b. Roblox Executor MCP (thật) — tự connect nếu đã cài sẵn trong mcp-servers/
-    if (typeof executor.isRealInstalled === 'function') {
-      try {
-        if (await executor.isRealInstalled('roblox-executor')) {
-          await executor.connect('roblox-executor');
-          mark('connect-roblox', 'ok', { detail: 'roblox-executor MCP sẵn sàng' });
-        } else {
-          mark('connect-roblox', 'skip', { detail: 'chưa cài — vào Hub để cài' });
+      Promise.allSettled(auto.map(async (m) => {
+        try {
+          await executor.connect(m.id);
+          bootState.autoStart.ok++;
+          hub.broadcast('boot', { phase: bootState.phase, line: `✔ ${m.name} đã kết nối` });
+          hub.broadcast('log', { level: 'info', line: `[boot] MCP '${m.id}' sẵn sàng`, boot: true });
+        } catch (e) {
+          const why = String(e?.message ?? e).slice(0, 160);
+          bootState.autoStart.failed.push({ id: m.id, error: why });
+          hub.broadcast('boot', { phase: bootState.phase, line: `✖ ${m.name}: ${why}` });
+          hub.broadcast('log', { level: 'warn', line: `[boot] MCP '${m.id}' lỗi: ${why}`, boot: true });
         }
-      } catch (e) {
-        mark('connect-roblox', 'skip', { detail: String(e?.message ?? e).slice(0, 120) });
-      }
+      })).then(() => {
+        const a = bootState.autoStart;
+        a.done = true;
+        a.ms = Date.now() - t1;
+        const step = bootState.steps.find((s) => s.name === 'autostart-mcp');
+        if (step) { step.status = a.ok ? 'ok' : 'error'; step.detail = `${a.ok}/${a.total} MCP đã kết nối`; step.ms = a.ms; }
+        hub.broadcast('boot', { phase: bootState.phase, step: 'autostart-mcp', status: a.ok ? 'ok' : 'error', detail: `${a.ok}/${a.total} MCP` });
+        hub.broadcast('log', { level: a.ok ? 'info' : 'warn', line: `[boot] Tự bật xong: ${a.ok}/${a.total} MCP (${a.ms}ms)`, boot: true });
+      });
+    } else {
+      mark('autostart-mcp', 'skip', { detail: 'không có MCP nào bật autoStart' });
+      bootState.autoStart = { total: 0, ok: 0, failed: [], done: true };
     }
 
-    // 3. Sẵn sàng
+    // 3. Sẵn sàng ngay (MCP tiếp tục kết nối nền)
     bootState.phase = 'ready';
     bootState.finishedAt = new Date().toISOString();
-    mark('ready', 'ok', { detail: `${executor.connectedCount()} MCP sẵn sàng · model ox-local-mock` });
-    hub.broadcast('log', { level: 'info', line: `[boot] Hệ thống sẵn sàng — ${executor.connectedCount()} MCP đã kết nối` });
+    mark('ready', 'ok', { detail: auto.length ? `đang bật ${auto.length} MCP nền` : 'không có MCP autoStart' });
+    hub.broadcast('log', { level: 'info', line: '[boot] Hệ thống sẵn sàng — MCP executor đang tự bật nền', boot: true });
   } catch (e) {
     bootState.phase = 'error';
     bootState.error = String(e?.message ?? e);
@@ -138,6 +150,13 @@ route('GET', '/api/status', (ctx) => {
 
 route('GET', '/api/boot', (ctx) => ok(ctx.res, bootState));
 
+// Audit trail: N invoke gần nhất (data/audit.jsonl) — dùng cho Home stream + smoke test
+route('GET', '/api/audit', (ctx) => {
+  const tail = Math.min(500, Math.max(1, Number(ctx.query.tail) || 50));
+  const items = executor._lastAudit(tail);
+  ok(ctx.res, { total: items.length, items });
+});
+
 // ---- plugins ----
 route('GET', '/api/plugins', async (ctx) => {
   const items = await Promise.resolve(executor.plugins(ctx.query));
@@ -171,7 +190,15 @@ route('GET', '/api/mcps/:id', async (ctx) => {
   const installed = typeof executor.isRealInstalled === 'function'
     ? await executor.isRealInstalled(ctx.params.id)
     : true;
-  ok(ctx.res, { ...m, state: executor.isConnected(ctx.params.id) ? 'connected' : 'disconnected', installed });
+  // tools THẬT do server báo về sau tools/list (dynamicTools) — ưu tiên hơn tools tĩnh
+  const live = typeof executor.getTools === 'function' ? executor.getTools(ctx.params.id) : [];
+  ok(ctx.res, {
+    ...m,
+    tools: live.length ? live : (m.tools ?? []),
+    toolCount: live.length || (m.tools ?? []).length,
+    state: executor.isConnected(ctx.params.id) ? 'connected' : 'disconnected',
+    installed,
+  });
 });
 // Cài đặt server thật (git clone + build) — log stream qua SSE
 route('POST', '/api/mcps/:id/install', async (ctx) => {
