@@ -461,6 +461,27 @@ await check('GUI OpenCode: token màu + layout part đã áp dụng', async () =
   return 'token màu + part layout + tool block + panel OK';
 });
 
+await check('install.sh: update tự restart + chỉ kill đúng cổng & đúng thư mục', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { fileURLToPath } = await import('node:url');
+  const sh = readFileSync(fileURLToPath(new URL('../install.sh', import.meta.url)), 'utf8');
+  const problems = [];
+  // /api/status phải trả pid + rootDir để installer nhận diện tiến trình
+  const st = expectOk(await req('GET', '/api/status'), '/api/status');
+  if (typeof st.pid !== 'number') problems.push('/api/status thiếu pid');
+  if (typeof st.rootDir !== 'string' || !st.rootDir) problems.push('/api/status thiếu rootDir');
+  // installer phải so version đĩa vs version đang chạy rồi restart
+  for (const need of ['disk_version()', 'running_version()', 'status_field pid', 'status_field rootDir', 'stop_running()']) {
+    if (!sh.includes(need)) problems.push(`install.sh thiếu ${need}`);
+  }
+  // TUYỆT ĐỐI không pkill theo tên tiến trình (giết cả instance khác của người dùng)
+  if (/pkill\s+-f\s+server\/index\.js/.test(sh)) problems.push('install.sh còn pkill -f server/index.js');
+  // repo URL phải là repo chuẩn hiện tại
+  if (!sh.includes('article-hub-studio/harness-executor')) problems.push('install.sh dùng URL repo cũ');
+  assert(problems.length === 0, `install.sh chưa đúng:\n    ${problems.join('\n    ')}`);
+  return `pid=${st.pid} · rootDir ok · so version + restart có gác cổng/thư mục`;
+});
+
 await check('Watchdog index.html không bật banner offline oan cho app đang sống', async () => {
   const { readFileSync } = await import('node:fs');
   const { fileURLToPath } = await import('node:url');

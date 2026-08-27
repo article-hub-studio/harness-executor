@@ -2,14 +2,14 @@
 # =============================================================
 #  Harness Executor — selfhost installer 1 lệnh
 #
-#    curl -fsSL https://raw.githubusercontent.com/article-hub-studio/upio-mcp-executor-harness/main/install.sh | bash
+#    curl -fsSL https://raw.githubusercontent.com/article-hub-studio/harness-executor/main/install.sh | bash
 #
 #  Hoạt động trên: Ubuntu/Debian · Fedora/Arch · macOS · Termux (chính điện thoại!)
 #  Tuỳ chọn:  --port 8787   --dir ~/harness-executor   --service (systemd)   --daemon
 # =============================================================
 set -euo pipefail
 
-REPO_URL="${UPIO_REPO:-https://github.com/article-hub-studio/upio-mcp-executor-harness.git}"
+REPO_URL="${UPIO_REPO:-https://github.com/article-hub-studio/harness-executor.git}"
 PORT="${UPIO_PORT:-8787}"
 DIR=""
 MODE="run"          # run | daemon | service
@@ -147,14 +147,121 @@ fi
 # ---------- 5. chạy ----------
 export PORT
 
-# CHỐNG CHẠY TRÙNG: cổng đã có harness sống thì không spawn thêm nữa
-if command -v curl >/dev/null 2>&1 \
-   && curl -fsS --max-time 2 "http://127.0.0.1:$PORT/api/status" 2>/dev/null | grep -q '"ok":true'; then
-  ok "Harness Executor ĐANG CHẠY SẴN ở cổng $PORT — không khởi động trùng."
-  echo "   ✓ Mở APK là tự kết nối ngay."
-  echo "   Muốn khởi động lại từ đầu:"
-  echo "     pkill -f server/index.js && sleep 1 && chạy lại lệnh cài"
-  exit 0
+# Phiên bản mã nguồn VỪA cập nhật trên đĩa (nguồn sự thật: package.json)
+disk_version() {
+  node -e 'try{process.stdout.write(require("./package.json").version||"")}catch(e){}' 2>/dev/null
+}
+
+# Đọc một field từ /api/status của tiến trình ĐANG CHẠY (rỗng nếu cổng không có harness)
+status_field() {
+  command -v curl >/dev/null 2>&1 || return 0
+  curl -fsS --max-time 2 "http://127.0.0.1:$PORT/api/status" 2>/dev/null \
+    | FIELD="$1" node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const j=JSON.parse(s);if(j.ok&&j[process.env.FIELD]!=null)process.stdout.write(String(j[process.env.FIELD]))}catch(e){}})' 2>/dev/null
+}
+running_version() { status_field version; }
+
+# Mọi PID đang LISTEN cổng $PORT (không xét thư mục)
+port_pids() {
+  local pids=""
+  if command -v ss >/dev/null 2>&1; then
+    pids=$(ss -ltnpH "sport = :$PORT" 2>/dev/null | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u)
+  fi
+  [ -z "$pids" ] && command -v lsof >/dev/null 2>&1 && pids=$(lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null)
+  [ -z "$pids" ] && command -v fuser >/dev/null 2>&1 && pids=$(fuser -n tcp "$PORT" 2>/dev/null | tr -s ' ' '\n' | grep -E '^[0-9]+$')
+  echo "$pids"
+}
+
+# Thư mục làm việc của một PID (bỏ hậu tố " (deleted)" khi thư mục bị clone lại)
+pid_cwd() {
+  local cwd
+  cwd=$(readlink "/proc/$1/cwd" 2>/dev/null || true)
+  [ -z "$cwd" ] && cwd=$(lsof -a -p "$1" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -1)
+  echo "${cwd% (deleted)}"
+}
+
+# PID đang LISTEN cổng $PORT VÀ có cwd đúng $DIR — để không bao giờ giết nhầm
+# tiến trình khác của người dùng.
+port_pid_in_dir() {
+  local p cwd want
+  want=$(readlink -f "$DIR" 2>/dev/null || echo "$DIR")
+  for p in $(port_pids); do
+    cwd=$(pid_cwd "$p")
+    if [ "$cwd" = "$want" ] || [ "$cwd" = "$DIR" ]; then echo "$p"; return 0; fi
+  done
+  return 0
+}
+
+# Dừng bản đang chạy trong $DIR (systemd → pid do server tự báo → pid file → PID giữ cổng).
+# KHÔNG dùng pkill theo tên tiến trình vì lệnh đó giết cả instance khác ngoài $DIR.
+# BẤT BIẾN: chỉ kill PID vừa giữ cổng $PORT vừa thuộc $DIR — nếu không thoả thì bỏ,
+# vì kill sai sẽ hạ một server đang phục vụ cổng khác (hoặc app khác của người dùng).
+stop_running() {
+  if command -v systemctl >/dev/null 2>&1 \
+     && systemctl --user is-active harness.service >/dev/null 2>&1; then
+    say "Khởi động lại systemd service…"
+    systemctl --user restart harness.service && return 0
+  fi
+
+  local listening pid="" cand srv_root want cwd
+  listening=$(port_pids)
+  want=$(readlink -f "$DIR" 2>/dev/null || echo "$DIR")
+
+  # Ứng viên theo thứ tự tin cậy: server tự báo pid (v1.3.0+) → pid file → dò cổng
+  srv_root=$(status_field rootDir)
+  for cand in "$(status_field pid)" "$(cat "$DIR/harness.pid" 2>/dev/null || true)" "$(port_pid_in_dir)"; do
+    [ -z "$cand" ] && continue
+    kill -0 "$cand" 2>/dev/null || continue
+    # (a) phải đang giữ đúng cổng $PORT
+    echo "$listening" | tr ' ' '\n' | grep -qx "$cand" || continue
+    # (b) phải thuộc đúng $DIR (ưu tiên rootDir do server tự báo, sau đó cwd)
+    if [ -n "$srv_root" ] && [ "$srv_root" != "$want" ] && [ "$srv_root" != "$DIR" ]; then continue; fi
+    cwd=$(pid_cwd "$cand")
+    if [ -n "$cwd" ] && [ "$cwd" != "$want" ] && [ "$cwd" != "$DIR" ] && [ -z "$srv_root" ]; then continue; fi
+    pid="$cand"; break
+  done
+
+  if [ -n "$pid" ]; then
+    kill "$pid" 2>/dev/null || true
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+      kill -0 "$pid" 2>/dev/null || break
+      sleep 0.5
+    done
+    kill -9 "$pid" 2>/dev/null || true
+    ok "Đã dừng tiến trình cũ (PID $pid)"
+    return 0
+  fi
+  warn "Không tìm được tiến trình harness của $DIR đang giữ cổng $PORT — không kill gì cả"
+  return 1
+}
+
+RUN_VER="$(running_version)"
+DISK_VER="$(disk_version)"
+
+if [ -n "$RUN_VER" ]; then
+  if [ -n "$DISK_VER" ] && [ "$RUN_VER" != "$DISK_VER" ]; then
+    # Đây là ĐƯỜNG UPDATE: mã nguồn đã git pull sang bản mới nhưng tiến trình cũ
+    # vẫn giữ code cũ trong RAM → phải restart, nếu không người dùng "update" mà
+    # vẫn thấy bản cũ.
+    say "Đang chạy v$RUN_VER · mã nguồn đã cập nhật v$DISK_VER → khởi động lại…"
+    if stop_running; then
+      # systemd tự bật lại: xác nhận rồi thoát
+      if command -v systemctl >/dev/null 2>&1 \
+         && systemctl --user is-active harness.service >/dev/null 2>&1; then
+        sleep 3
+        ok "Service đã chạy lại ở v$(running_version)"
+        exit 0
+      fi
+    else
+      die "Không giải phóng được cổng $PORT — dừng thủ công rồi chạy lại lệnh cài"
+    fi
+    # rơi xuống phần khởi động bên dưới với code mới
+  else
+    ok "Harness Executor v$RUN_VER ĐANG CHẠY SẴN ở cổng $PORT — không khởi động trùng."
+    echo "   ✓ Mở APK là tự kết nối ngay."
+    echo "   Muốn khởi động lại: chạy lại lệnh cài sau khi có bản mới, hoặc"
+    echo "     kill \$(cat $DIR/harness.pid 2>/dev/null) && chạy lại lệnh cài"
+    exit 0
+  fi
 fi
 
 # Termux: giữ CPU thức dậy để Android không giết server khi thu nhỏ/tắt màn

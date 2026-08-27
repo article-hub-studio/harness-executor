@@ -52,7 +52,7 @@ WebUI mobile-first (PWA) + backend Node.js cho **upio MCP Executor**:
 
 ## 4. REST API (tất cả JSON; lỗi → `{error}` + status 4xx/5xx)
 
-- `GET  /api/status` → `{ok:true, name, version, uptimeSec, counts:{plugins,mcps,skills}, env:{node,platform}, connectedMcps:number}`
+- `GET  /api/status` → `{ok:true, name, version, pid, rootDir, uptimeSec, counts:{plugins,mcps,skills}, env:{node,platform}, connectedMcps:number}` — `pid`+`rootDir` để `install.sh` xác định đúng tiến trình cần restart khi update (chỉ kill PID vừa giữ đúng cổng vừa thuộc đúng thư mục cài).
 - `GET  /api/plugins?q=&category=` → `{total, items:Plugin[]}`
 - `GET  /api/plugins/:id` → `Plugin`
 - `POST /api/plugins/:id/toggle` body `{enabled:boolean}` → `Plugin`

@@ -102,7 +102,21 @@ Tuỳ chọn:
 ... | bash -s -- --service          # systemd user service (tự khởi động lại)
 ```
 
-Cập nhật bản mới? Chạy lại đúng lệnh trên — script `git pull` + giữ nguyên dữ liệu.
+### Cập nhật bản mới
+
+Chạy lại **đúng lệnh cài ở trên** — script sẽ `git pull`, giữ nguyên dữ liệu (`data/state.json`,
+`data/models.json`, `workspace/`), rồi so phiên bản trên đĩa với phiên bản mà tiến trình đang chạy:
+
+- Khác nhau → **tự dừng bản cũ và khởi động lại bản mới** (systemd thì `systemctl --user restart`).
+- Giống nhau → báo "ĐANG CHẠY SẴN" và không spawn trùng.
+
+Chỉ tiến trình vừa giữ đúng cổng `--port` vừa thuộc đúng thư mục `--dir` mới bị dừng, nên
+nhiều instance ở các cổng khác nhau vẫn an toàn. Muốn dừng tay:
+
+```bash
+kill $(cat ~/harness-executor/harness.pid)      # bản --daemon
+systemctl --user stop harness                   # bản --service
+```
 
 ## 📲 App Android (APK) — build & ký tự động
 

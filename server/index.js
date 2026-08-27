@@ -18,7 +18,7 @@ const ROOT = path.resolve(__dirname, '..');
 const PORT = Number(process.env.PORT || 8787);
 const DATA_DIR = path.join(ROOT, 'data');
 const WEB_DIR = path.join(ROOT, 'web');
-const VERSION = '1.3.0';
+const VERSION = '1.3.1';
 const STARTED = Date.now();
 
 const MIME = {
@@ -139,6 +139,10 @@ function fail(res, status, error) {
 route('GET', '/api/status', (ctx) => {
   ok(ctx.res, {
     ok: true, name: 'Harness Executor', product: 'MCP Executor Harness', version: VERSION,
+    // pid + rootDir để installer biết CHÍNH XÁC tiến trình nào đang giữ cổng và nó
+    // thuộc thư mục cài nào → restart đúng bản, không giết nhầm instance khác.
+    pid: process.pid,
+    rootDir: ROOT,
     uptimeSec: Math.floor((Date.now() - STARTED) / 1000),
     counts: executor.stats().counts ?? {},
     connectedMcps: executor.connectedCount(),
