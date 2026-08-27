@@ -1,6 +1,6 @@
 {
   "name": "upio-mcp-executor-harness",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "Harness Executor — mobile-first WebUI theo phong cách OpenCode + zero-dependency Node backend: registry Luau/LSP với 10 MCP server THẬT (không mô phỏng), 10 plugin có behavior thật, 13 skill, MCP executor tự bật khi boot, environment auto-builder, custom model hub và điều phối đa-agent.",
   "type": "module",
   "main": "server/index.js",

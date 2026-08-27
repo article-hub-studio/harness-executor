@@ -118,6 +118,24 @@ kill $(cat ~/harness-executor/harness.pid)      # bản --daemon
 systemctl --user stop harness                   # bản --service
 ```
 
+### Mất kết nối / đổi Wi-Fi — app không treo nữa (v1.3.3)
+
+Bản APK nhớ địa chỉ server trong máy. Khi máy tính đổi IP hoặc bạn đổi Wi-Fi, địa chỉ đó chết
+và trước đây app đứng im: mọi request treo vô hạn, mà HTTP/1.1 chỉ cho 6 kết nối mỗi origin
+nên hết 6 slot là **tắc cả file tĩnh lẫn SSE** — bấm tab nào cũng như đóng băng.
+
+Từ v1.3.3:
+
+- Mọi request có **deadline** (12s; việc chậm thật như cài MCP được 3 phút riêng) và trần
+  đồng thời giữ ở 3 để SSE + file tĩnh luôn còn chỗ.
+- Stream chat có deadline **theo từng chunk** (im quá 60s mới ngắt) nên câu trả lời dài
+  vẫn chạy bình thường, còn model treo giữa stream thì không khoá cứng tab Chat.
+- Nút **Thử lại** trên thanh cảnh báo **dò lại địa chỉ server** rồi nạp lại dữ liệu ngay
+  trong app, không reload trang (reload chỉ dùng lại đúng địa chỉ đã chết).
+- Mở app mà địa chỉ cũ chết thì app tự dò ở nền và vẫn vẽ giao diện ngay.
+- Server trả lỗi 5xx hoặc đang bận việc dài **không còn bị báo "API offline"** — báo sai
+  khiến bạn đi sửa mạng vô ích.
+
 ## 📲 App Android (APK) — build & ký tự động
 
 Repo có sẵn workflow GitHub Actions (`.github/workflows/release.yml`):

@@ -3,7 +3,7 @@
    Router hash · SSE bus · store chung · toast · bottom sheet ·
    helper icon/status · boot overlay gate.
    ============================================================ */
-import { api, connectEvents } from './api.js';
+import { api, connectEvents, getApiBase, probeBase, rediscoverBase } from './api.js';
 import { icon, ICONS } from './icons.js';
 import { gateBoot } from './boot.js';
 import * as homeView from './views/home.js';
@@ -21,6 +21,7 @@ window.__UPIO_MODULES = true;
 
 // Re-export để mọi view chỉ cần import một đường từ '../app.js'
 export { api, connectEvents };
+export { getApiBase, setApiBase, probeBase, rediscoverBase } from './api.js';
 export { chatCompletion } from './api.js';
 export { icon, ICONS };
 
@@ -265,6 +266,7 @@ const ROUTES = {
   settings: settingsView,
 };
 let viewCleanup = null;
+let events = null;   // handle SSE toàn cục — cần để reopen() khi đổi API base
 
 function parseRoute() {
   const name = location.hash.replace(/^#\/?/, '').split('?')[0];
@@ -306,9 +308,45 @@ async function navigate() {
 }
 
 /* ---------------- Status + offline banner ---------------- */
-function setBanner(show) {
+function setBanner(show, text) {
   const b = document.getElementById('offline-banner');
   if (b) b.classList.toggle('show', !!show);
+  const t = document.getElementById('offline-text');
+  if (t && text) t.textContent = text;
+}
+
+let recheckTimer = null;   // hẹn kiểm lại nhanh sau khi mất kết nối (khai báo trước khi dùng)
+
+/** Nút "Thử lại" trên banner: DÒ LẠI địa chỉ API rồi nạp lại dữ liệu — không reload trang.
+ * Reload vô ích khi base lưu trong localStorage đã chết (đổi Wi-Fi / IP máy tính đổi):
+ * tải lại vẫn dùng đúng base sai đó. */
+let retrying = false;
+export async function retryConnection() {
+  if (retrying) return false;
+  retrying = true;
+  setBanner(true, 'Đang dò lại địa chỉ server…');
+  try {
+    const hit = await rediscoverBase();
+    if (!hit) {
+      setBanner(true, `Không tìm thấy harness server (đang thử ${getApiBase() || location.host}) — kiểm tra server còn chạy?`);
+      return false;
+    }
+    if (events && events.reopen) events.reopen();   // SSE phải nối lại theo base mới
+    // refreshStatus TRƯỚC (nó tự tắt banner khi ok) rồi mới toast, để banner và toast
+    // không nói ngược nhau. probe vừa thành công nhưng vẫn phải xác nhận qua đường
+    // fetch bình thường — đó mới là đường app thật sự dùng.
+    await refreshStatus();
+    if (!store.apiOk) {
+      setBanner(true, `Dò ra ${hit.base || location.host} nhưng chưa lấy được dữ liệu — thử lại lần nữa?`);
+      return false;
+    }
+    await refreshModels();
+    await navigate();                                // vẽ lại view hiện tại với dữ liệu thật
+    toast(`Đã kết nối ${hit.base || location.host} · v${hit.version}`, 'ok');
+    return true;
+  } finally {
+    retrying = false;
+  }
 }
 
 export async function refreshStatus() {
@@ -318,13 +356,28 @@ export async function refreshStatus() {
     store.apiOk = true;
     store.counts = s.counts || store.counts;
     store.connectedMcps = typeof s.connectedMcps === 'number' ? s.connectedMcps : store.connectedMcps;
-    setBanner(false);
+    setBanner(false, 'API offline — một số dữ liệu không khả dụng');   // trả text về mặc định
     emit('status', s);
-  } catch {
+  } catch (err) {
     const wasOk = store.apiOk;
-    store.apiOk = false;
-    setBanner(true);
-    if (wasOk) emit('status', null); // báo views biết mất kết nối
+    // Server SỐNG mà request lỗi (HTTP 5xx) hoặc client đang bận (hàng đợi đầy) thì
+    // KHÔNG phải "API offline" — báo sai làm người dùng đi sửa mạng vô ích.
+    const kind = err && err.kind;
+    if (kind === 'http') {
+      setBanner(true, `Server trả lỗi ${err.status || ''} — server vẫn sống, xem log để rõ hơn`);
+    } else if (kind === 'busy') {
+      setBanner(true, 'Đang có việc chạy lâu — tạm thời chậm phản hồi');
+    } else {
+      store.apiOk = false;
+      setBanner(true, `API offline (${getApiBase() || location.host}) — bấm Thử lại để dò lại server`);
+      if (wasOk) emit('status', null); // báo views biết mất kết nối
+      // Mất kết nối thì kiểm lại sau 5s thay vì đợi hết chu kỳ 30s: mạng Wi-Fi
+      // chập chờn hồi rất nhanh, banner không nên đứng lại tới nửa phút.
+      clearTimeout(recheckTimer);
+      recheckTimer = setTimeout(() => { refreshStatus().catch(() => {}); }, 5000);
+      return;
+    }
+    store.apiOk = kind === 'http' || kind === 'busy';   // vẫn coi là còn kết nối
   }
 }
 
@@ -378,20 +431,41 @@ async function init() {
 
   window.addEventListener('hashchange', navigate);
 
+  // Nút "Thử lại" trên banner: dò lại server + nạp lại dữ liệu (KHÔNG reload trang).
+  document.getElementById('offline-retry')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();     // chặn handler reload cũ trong index.html
+    retryConnection();
+  }, true);
+
   // SSE toàn cục: bật TRƯỚC boot gate để không lỡ event 'boot'/'log'
-  connectEvents((evt) => {
+  events = connectEvents((evt) => {
     if (!evt || !evt.type) return;
     emit(evt.type, evt);
     if (evt.type === 'mcp' || evt.type === 'plugin') refreshStatusSoon();
   });
+
+  // Địa chỉ API lưu sẵn (APK) có thể đã chết vì đổi Wi-Fi/IP → dò lại.
+  // Chỉ CHẶN tối đa 1.2s cho base hiện tại; nếu nó chết thì dò tiếp Ở NỀN và vẫn vẽ UI
+  // ngay. Dò tuần tự 4 ứng viên × 2.5s = tới 10s, chặn cả gateBoot + navigate trong
+  // khoảng đó thì người dùng thấy đúng như treo.
+  if (!(await probeBase(getApiBase(), 1200))) {
+    rediscoverBase({ skipCurrent: true }).then(async (hit) => {
+      if (!hit) return;
+      events.reopen();
+      await refreshStatus();
+      await refreshModels();
+      await navigate();           // vẽ lại với dữ liệu thật khi đã tìm được server
+    }).catch(() => {});
+  }
 
   // Boot gate: backend tự setup khi vừa mở — overlay chỉ hiện khi phase 'booting'
   try { await gateBoot({ api, listen }); } catch { /* không bao giờ chặn app */ }
 
   await navigate();
 
-  window.addEventListener('online', refreshStatus);
-  window.addEventListener('offline', () => { store.apiOk = false; setBanner(true); });
+  window.addEventListener('online', () => { retryConnection(); });
+  window.addEventListener('offline', () => { store.apiOk = false; setBanner(true, 'Thiết bị mất mạng'); });
 
   await refreshStatus().catch(() => {});
   setInterval(refreshStatus, 30000);

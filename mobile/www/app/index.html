@@ -44,25 +44,50 @@
   <script>
     (function () {
       var t0 = Date.now();
+      /* Deadline không dùng AbortSignal.timeout: WebView cũ thiếu nó và sẽ ném
+         TypeError ĐỒNG BỘ ở đây (ngoài chuỗi .catch bên dưới) → vòng thử lại chết hẳn
+         và banner đứng mãi. AbortController có mặt rộng hơn nhiều. */
+      function timedFetch(url, ms) {
+        try {
+          var ac = new AbortController();
+          var t = setTimeout(function () { ac.abort(); }, ms);
+          return fetch(url, { signal: ac.signal, cache: 'no-store' })
+            .then(function (r) { clearTimeout(t); return r; },
+                  function (e) { clearTimeout(t); throw e; });
+        } catch (e) {
+          try { return fetch(url, { cache: 'no-store' }); } catch (e2) { return Promise.reject(e2); }
+        }
+      }
       /* CHỈ thử lại khi app CHƯA boot được (module chặn / API chết).
          Trước đây hàm này reload ngay khi /api/status ok → app sống mà vẫn
          tự reload mỗi 1.2s thành vòng lặp vô hạn. */
       function retry() {
         if (window.__UPIO_MODULES || window.__UPIO_BOOTED) return; // app đã sống — không can thiệp nữa
-        fetch('/api/status', { signal: AbortSignal.timeout(2500), cache: 'no-store' })
+        /* Dùng base đã lưu nếu có: bản APK phục vụ UI từ file bundle nên same-origin
+           KHÔNG có /api — hỏi same-origin sẽ luôn fail và báo offline oan. */
+        var base = '';
+        try { base = window.__DSH_API_BASE || localStorage.getItem('upio.api') || ''; } catch (e) {}
+        timedFetch(base + '/api/status', 2500)
           .then(function (r) { return r.json(); })
           .then(function (j) {
             if (j && j.ok === true && !window.__UPIO_MODULES && !window.__UPIO_BOOTED) { location.reload(); return true; }
             throw new Error('no');
           }).catch(function () {
             var b = document.getElementById('offline-text');
-            if (b && Date.now() - t0 > 4000) b.textContent = 'API offline (' + location.host + ') — đang thử lại mỗi 4s…';
+            if (b && Date.now() - t0 > 4000) {
+              b.textContent = 'API offline (' + (base || location.host) + ') — đang thử lại mỗi 4s…';
+            }
             setTimeout(retry, 4000);
           });
       }
       window.addEventListener('load', function () {
         var btn = document.getElementById('offline-retry');
-        if (btn) btn.addEventListener('click', function () { location.reload(); });
+        /* Chỉ reload khi module CHƯA sống. App đã sống thì app.js tự xử lý nút này
+           bằng cách DÒ LẠI địa chỉ API — reload sẽ dùng lại đúng base đã chết. */
+        if (btn) btn.addEventListener('click', function () {
+          if (window.__UPIO_MODULES || window.__UPIO_BOOTED) return;
+          location.reload();
+        });
         setTimeout(retry, 2500);
       });
     })();

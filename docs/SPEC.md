@@ -154,6 +154,37 @@ Vanilla ES modules, KHÔNG framework, KHÔNG build. Trang shell `index.html` + `
 - **KHÔNG emoji trong chrome UI**: mọi `icon` trong `data/*.json` phải là key có thật trong `web/js/icons.js` (99 icon Solar + Heroicons-Blade, sinh bởi `scripts/build-icons.js`); smoke test assert điều này.
 - Boot overlay: khi mở app, nếu `/api/boot.phase !== 'ready'` hiện màn hình setup với log trực tiếp, fade out khi ready. Watchdog trong `index.html` CHỈ reload khi `window.__UPIO_BOOTED` còn false (nếu không sẽ thành vòng lặp reload vô hạn).
 - `api.js` trung tâm gọi REST + SSE reconnect. Xử lý offline (banner "Offline").
+- **Chống treo UI (v1.3.3) — bất biến bắt buộc, smoke test assert:**
+  `fetch` không có timeout mặc định. Server nhận kết nối TCP rồi im lặng (Wi-Fi yếu, Termux
+  bị Android freeze, đổi mạng) là request treo **vĩnh viễn**; HTTP/1.1 chỉ cho **6 kết nối
+  mỗi origin** nên cạn slot là tắc cả file tĩnh, SSE và mọi tab sau đó — app "freeze" dù
+  main thread vẫn chạy (đã đo: 6 request `/api` treo → tải `/css/app.css` timeout >6s).
+  Vì vậy:
+  - Mọi request qua `fetchJSON` có deadline (`DEFAULT_TIMEOUT_MS = 12000`); việc chậm THẬT
+    dùng deadline riêng: `SLOW_MS = 180000` (installMcp, envBuild), `TOOL_MS = 90000`
+    (invoke, runSkill, testModel, spawnAgent, sayAgent, connect, termExec).
+  - `MAX_INFLIGHT = 3` (**phải < 6**) + `MAX_QUEUE = 24` + `MAX_WAIT_MS = 15000`: chờ tới
+    lượt cũng có hạn, waiter hết hạn tự rời hàng đợi để không tiêu slot vô ích.
+  - `deadlineSignal()` dùng `AbortController`, **không** `AbortSignal.timeout` (WebView cũ
+    thiếu API này và ném TypeError đồng bộ).
+  - Gộp GET trùng theo path, nhưng có cửa thoát `fresh: true` cho **đọc-sau-ghi**: sau
+    mutation (spawn agent, env build, term exec) phải đi request riêng, nếu không sẽ nối
+    vào request phát TRƯỚC mutation và hiện state cũ vĩnh viễn (agents chỉ poll khi có
+    agent `running`).
+  - `chatCompletion` có deadline **theo từng chunk** (`CHAT_CONNECT_MS = 20000`,
+    `CHAT_STALL_MS = 60000`, nạp lại mỗi vòng `reader.read()`), không phải deadline tổng —
+    câu trả lời dài hợp lệ có thể chạy vài phút, còn stall thì phải nhả cờ `busy`.
+  - `sw.js` nằm NGOÀI semaphore nên fetch của nó cũng phải có deadline
+    (`fetchWithDeadline`, không dùng `cache.add()`): ~15 asset refresh nền treo là tự ăn hết
+    6 kết nối của origin.
+  - Lỗi được **phân loại** `err.kind`: `unreachable` | `http` (server sống, 5xx) | `busy`.
+    Chỉ `unreachable` mới bật banner "API offline" — báo sai khiến người dùng đi sửa mạng vô ích.
+- **API base đổi được lúc chạy (v1.3.3):** `setApiBase/probeBase/rediscoverBase`. APK lưu địa
+  chỉ server vào `upio.server` (launcher) + `upio.api` (bundle); IP máy tính đổi là địa chỉ đó
+  chết. Nút "Thử lại" **dò lại** rồi nạp lại dữ liệu trong app — KHÔNG reload (reload dùng lại
+  đúng base đã chết). Thứ tự dò: base hiện tại → same-origin → `upio.server` → loopback:8787;
+  base loopback chỉ là phỏng đoán nên không ghi đè `upio.server`. Đổi base thì `inflightGets`
+  bị xoá và SSE nối lại (`reopen()`, tự phát hiện base lệch trong `onerror`).
 
 ## 6. Server chính (MAIN viết sẵn — subagent KHỐNG can thiệp)
 `server/index.js`: http server, static `web/`, mount routes trên, SSE hub broadcast toàn cục, PORT env mặc định **8787**.

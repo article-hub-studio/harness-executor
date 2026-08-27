@@ -461,6 +461,94 @@ await check('GUI OpenCode: token màu + layout part đã áp dụng', async () =
   return 'token màu + part layout + tool block + panel OK';
 });
 
+await check('Frontend chống treo: fetch có deadline + trần đồng thời < 6 kết nối', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { fileURLToPath } = await import('node:url');
+  const WEBDIR = fileURLToPath(new URL('../web', import.meta.url));
+  const apijs = readFileSync(`${WEBDIR}/js/api.js`, 'utf8');
+  const appjs = readFileSync(`${WEBDIR}/js/app.js`, 'utf8');
+  const html = readFileSync(`${WEBDIR}/index.html`, 'utf8');
+  const problems = [];
+
+  // 1) MỌI request phải có deadline. fetch không timeout + server im lặng = treo vĩnh viễn.
+  if (!/DEFAULT_TIMEOUT_MS\s*=\s*\d+/.test(apijs)) problems.push('api.js thiếu DEFAULT_TIMEOUT_MS');
+  if (!/signal:\s*dl\.signal/.test(apijs)) problems.push('fetch trong api.js không gắn signal deadline');
+
+  // 2) Trần đồng thời phải < 6 (giới hạn kết nối/origin của HTTP/1.1) để SSE + asset còn slot.
+  const mi = apijs.match(/MAX_INFLIGHT\s*=\s*(\d+)/);
+  if (!mi) problems.push('api.js thiếu MAX_INFLIGHT');
+  else if (Number(mi[1]) >= 6) problems.push(`MAX_INFLIGHT=${mi[1]} ≥ 6 → cạn pool, asset/SSE bị tắc`);
+  if (!/MAX_QUEUE\s*=\s*\d+/.test(apijs)) problems.push('api.js thiếu MAX_QUEUE (hàng đợi phình vô hạn)');
+
+  // 3) Việc chậm thật không được bị cắt oan bởi deadline mặc định.
+  const apiLines = apijs.split('\n');
+  for (const slow of ['installMcp', 'envBuild', 'invoke', 'termExec', 'runSkill']) {
+    const i = apiLines.findIndex((l) => l.trimStart().startsWith(`${slow}:`));
+    if (i < 0) { problems.push(`api.js không có endpoint ${slow}`); continue; }
+    const decl = apiLines.slice(i, i + 3).join(' ');   // arrow function có thể xuống dòng
+    if (!/(SLOW_MS|TOOL_MS)/.test(decl)) problems.push(`${slow} dùng deadline mặc định — sẽ cắt oan việc chậm`);
+  }
+
+  // 4) API base phải đổi được lúc chạy + có đường dò lại (APK lưu IP chết khi đổi Wi-Fi).
+  for (const fn of ['export function setApiBase', 'export async function probeBase', 'export async function rediscoverBase']) {
+    if (!apijs.includes(fn)) problems.push(`api.js thiếu ${fn}`);
+  }
+  if (/^const API_BASE/m.test(apijs)) problems.push('API_BASE là const → không đổi được base khi IP server đổi');
+
+  // 5) Nút "Thử lại" phải DÒ LẠI, không phải reload (reload dùng lại đúng base đã chết).
+  if (!appjs.includes('retryConnection')) problems.push('app.js thiếu retryConnection cho nút Thử lại');
+  if (!/offline-retry/.test(appjs)) problems.push('app.js không wire #offline-retry');
+  if (!/__UPIO_MODULES \|\| window\.__UPIO_BOOTED\) return;[\s\S]{0,80}location\.reload/.test(html)) {
+    problems.push('index.html: nút Thử lại vẫn reload dù app đã sống');
+  }
+
+  // 6) SSE phải có backoff + reopen (khỏi churn 3s/lần khi API chết, và đổi base thì nối lại).
+  if (!/backoff/.test(apijs)) problems.push('connectEvents thiếu backoff');
+  if (!/reopen\(\)/.test(apijs)) problems.push('connectEvents thiếu reopen() để đổi base');
+
+  // 7) Stream chat cũng phải có deadline, nếu không server im giữa stream = tab Chat
+  //    khoá cứng vĩnh viễn (cờ busy không bao giờ nhả).
+  for (const need of ['CHAT_CONNECT_MS', 'CHAT_STALL_MS']) {
+    // Phải có KHAI BÁO thật, không chỉ là tên xuất hiện đâu đó: đổi tên biến khai báo
+    // mà vẫn còn chỗ dùng thì includes() vẫn khớp và đột biến lọt lưới.
+    if (!new RegExp(`const ${need}\\s*=\\s*\\d+`).test(apijs)) {
+      problems.push(`chatCompletion thiếu ${need} → treo khi model im giữa stream`);
+    }
+  }
+  if (!/armStall\(CHAT_STALL_MS\)/.test(apijs)) problems.push('vòng đọc stream chat không nạp lại deadline mỗi chunk');
+  if (/signal,\n\s*\}\);/.test(apijs) && !/signal: ac\.signal/.test(apijs)) {
+    problems.push('chatCompletion vẫn dùng signal thô, không có deadline');
+  }
+
+  // 8) Service worker nằm NGOÀI semaphore → fetch của nó cũng phải có deadline,
+  //    nếu không ~15 asset refresh treo tự ăn hết 6 kết nối của origin.
+  const swjs = readFileSync(`${WEBDIR}/sw.js`, 'utf8');
+  if (!/fetchWithDeadline/.test(swjs)) problems.push('sw.js fetch không có deadline');
+  if (/[^h]\bfetch\(req\)/.test(swjs)) problems.push('sw.js còn fetch(req) trần');
+  if (/cache\.add\(/.test(swjs)) problems.push('sw.js còn cache.add() (không timeout được)');
+
+  // 9) Lỗi phải phân loại: HTTP 5xx / quá tải KHÔNG được báo "API offline".
+  for (const need of ["kind = 'unreachable'", "kind = 'http'", "kind = 'busy'"]) {
+    if (!apijs.includes(need)) problems.push(`api.js thiếu phân loại lỗi ${need}`);
+  }
+  if (!/kind === 'http'/.test(appjs)) problems.push('app.js không phân biệt lỗi HTTP với offline');
+
+  // 10) Chờ tới lượt phải có hạn, và waiter phải rời được hàng đợi.
+  if (!/MAX_WAIT_MS/.test(apijs)) problems.push('acquire() không giới hạn thời gian chờ tới lượt');
+  if (!/waiters\.splice/.test(apijs)) problems.push('waiter hết hạn không rời hàng đợi → tiêu slot vô ích');
+
+  // 11) Đọc-sau-ghi: sau mutation phải đọc MỚI, không nối vào request phát trước đó.
+  if (!/!opts\.fresh/.test(apijs)) problems.push('gộp GET không có cửa thoát fresh → trả state cũ sau mutation');
+  const agentsjs = readFileSync(`${WEBDIR}/js/views/agents.js`, 'utf8');
+  if (!/api\.agents\(force\)/.test(agentsjs)) problems.push('agents.js không truyền fresh khi force refresh');
+
+  // 12) AbortSignal.timeout ném đồng bộ ở WebView cũ → không được dùng trong fallback.
+  if (/AbortSignal\.timeout\(/.test(html)) problems.push('index.html dùng AbortSignal.timeout (WebView cũ ném TypeError)');
+
+  assert(problems.length === 0, `frontend còn đường treo:\n    ${problems.join('\n    ')}`);
+  return `deadline ${apijs.match(/DEFAULT_TIMEOUT_MS\s*=\s*(\d+)/)[1]}ms · MAX_INFLIGHT=${mi[1]} · dò lại base + SSE backoff`;
+});
+
 await check('install.sh: update tự restart + chỉ kill đúng cổng & đúng thư mục', async () => {
   const { readFileSync } = await import('node:fs');
   const { fileURLToPath } = await import('node:url');

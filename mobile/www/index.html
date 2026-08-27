@@ -163,10 +163,19 @@
 
   function probe(base) {
     // mode 'no-cors': chỉ cần TCP/HTTP phản hồi là coi như server sống —
-    // không bao giờ vướng CORS dù server cũ chưa có header Access-Control-Allow-Origin
-    return fetch(base + '/api/status', { mode: 'no-cors', cache: 'no-store', signal: AbortSignal.timeout(2500) })
-      .then(function () { return base; })
-      .catch(function () { return null; });
+    // không bao giờ vướng CORS dù server cũ chưa có header Access-Control-Allow-Origin.
+    // Deadline bằng AbortController (KHÔNG dùng AbortSignal.timeout): WebView cũ thiếu
+    // nó và sẽ ném TypeError đồng bộ → launcher đứng ở màn "đang tìm server".
+    var ac, t;
+    try {
+      ac = new AbortController();
+      t = setTimeout(function () { ac.abort(); }, 2500);
+    } catch (e) { ac = null; }
+    return fetch(base + '/api/status', ac
+        ? { mode: 'no-cors', cache: 'no-store', signal: ac.signal }
+        : { mode: 'no-cors', cache: 'no-store' })
+      .then(function () { if (t) clearTimeout(t); return base; })
+      .catch(function () { if (t) clearTimeout(t); return null; });
   }
 
   function go(base) {

@@ -181,7 +181,9 @@ export async function render(el) {
     const fresh = wsState.cache.items && Date.now() - wsState.cache.at < wsState.TTL;
     if (!force && fresh) { items = wsState.cache.items; drawList(); fillAgentSelect(); return items; }
     try {
-      const d = await api.agents();
+      // force = vừa có mutation (spawn/cancel/say) → phải đọc MỚI, không được nối vào
+      // request /api/agents phát trước mutation (sẽ trả list thiếu agent vừa tạo).
+      const d = await api.agents(force);
       items = d.items || [];
       wsState.cache.items = items;
       wsState.cache.at = Date.now();
@@ -476,7 +478,7 @@ export async function render(el) {
     liveTimer = setInterval(async () => {
       if (!alive || wsState.selectedId !== id) return stopLive();
       let d;
-      try { d = await api.agent(id); } catch { return; } // offline → thử lần sau
+      try { d = await api.agent(id, true); } catch { return; } // offline → thử lần sau
       const sig = `${d.status}:${(d.steps || []).length}:${(d.session || []).length}`;
       if (sig !== threadSig) {
         threadSig = sig;

@@ -145,15 +145,17 @@ export async function render(el) {
       </div>`).join('') || '<p class="dim">Trống.</p>';
   }
 
-  async function loadEnv() {
-    try { drawEnv(await api.env()); }
+  async function loadEnv(fresh = false) {
+    // fresh=true sau env build: nối vào request /api/env phát TRƯỚC build sẽ hiện
+    // checklist tiền-build và không có lần refresh nào sửa lại.
+    try { drawEnv(await api.env(fresh)); }
     catch { drawEnv(null); }
   }
 
   $('env-scan').addEventListener('click', async (e) => {
     const btn = e.currentTarget;
     btn.classList.add('loading');
-    await loadEnv();
+    await loadEnv(true);
     btn.classList.remove('loading');
     toast('Đã quét lại environment', 'info');
   });
@@ -199,7 +201,7 @@ export async function render(el) {
       clearTimeout(hardTimer);
       envOff.forEach((f) => f());
       envOff = [];
-      await loadEnv();
+      await loadEnv(true);
       store.envBuilding = false;
       btn.classList.remove('loading');
       toast('Environment build hoàn tất — checklist đã cập nhật', 'ok');

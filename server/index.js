@@ -18,7 +18,7 @@ const ROOT = path.resolve(__dirname, '..');
 const PORT = Number(process.env.PORT || 8787);
 const DATA_DIR = path.join(ROOT, 'data');
 const WEB_DIR = path.join(ROOT, 'web');
-const VERSION = '1.3.2';
+const VERSION = '1.3.3';
 const STARTED = Date.now();
 
 const MIME = {

@@ -96,8 +96,10 @@ export function render(el) {
   function drawAll() { drawChips(); drawConsole(); drawPerm(); }
 
   /* ---------- dữ liệu ---------- */
-  async function refresh() {
-    const d = await api.termSessions().catch(() => null);
+  /* fresh=true khi vừa có mutation (exec / tạo / kill session): nối vào request phát
+     TRƯỚC mutation sẽ mất output và pending-permission một nhịp. */
+  async function refresh(fresh = false) {
+    const d = await api.termSessions(fresh).catch(() => null);
     if (!d) return;
     state.sessions = d.items || [];
     state.pending = d.pending || [];
@@ -109,9 +111,9 @@ export function render(el) {
     drawAll();
   }
 
-  async function loadCurrent() {
+  async function loadCurrent(fresh = false) {
     if (!state.current) return;
-    const t = await api.term(state.current).catch(() => null);
+    const t = await api.term(state.current, fresh).catch(() => null);
     if (t) { state.log = t.log || []; $('#term-dir').innerHTML = `${icon('blade/folder', 'ic-sm')} ${esc(t.dir)}`; }
   }
 
@@ -143,19 +145,19 @@ export function render(el) {
     const r = await api.termExec(state.current, cmdText, state.viaShizuku ? 'shizuku' : 'local').catch((e) => ({ error: e.message }));
     if (r.error) { state.log.push({ t: Date.now(), stream: 'err', data: `✖ ${r.error}` }); drawConsole(); }
     if (r.needsApproval) toast(`Cần duyệt [${r.permId}] — xem thẻ phía trên`, 'warn');
-    setTimeout(refresh, r.ran ? 250 : 400);
+    setTimeout(() => refresh(true), r.ran ? 250 : 400);
   });
 
   $('#btn-new').addEventListener('click', async () => {
     const n = state.sessions.length + 1;
     const s = await api.termCreate(`term-${n}`).catch(() => null);
-    if (s) { state.current = s.id; await refresh(); toast('Đã tạo terminal + folder riêng'); }
+    if (s) { state.current = s.id; await refresh(true); toast('Đã tạo terminal + folder riêng'); }
   });
 
   $('#btn-kill').addEventListener('click', async () => {
     if (!state.current) return;
     await api.termKill(state.current).catch(() => {});
-    state.log = []; await refresh(); toast('Đã xoá session + folder');
+    state.log = []; await refresh(true); toast('Đã xoá session + folder');
   });
 
   const chk = $('#chk-shizuku');
@@ -170,7 +172,7 @@ export function render(el) {
   /* ---------- init ---------- */
   state.unsub = [listen('term', onOut), listen('perm', onOut)];
   refresh();
-  state.poll = setInterval(refresh, 4000);
+  state.poll = setInterval(() => refresh(), 4000);   // poll thường: gộp được thì cứ gộp
 
   return () => { clearInterval(state.poll); state.unsub.forEach((u) => { try { u(); } catch { /* ok */ } }); };
 }

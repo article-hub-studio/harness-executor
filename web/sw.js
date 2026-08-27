@@ -2,7 +2,7 @@
  * Cache-first cho static same-origin KHÔNG phải /api hay /v1; còn lại → network thẳng.
  * Có cập nhật nền (stale-while-revalidate) và dọn cache cũ khi activate.
  */
-const CACHE = 'upio-web-v13';
+const CACHE = 'upio-web-v14';
 
 const PRECACHE = [
   './',
@@ -24,11 +24,24 @@ const PRECACHE = [
   './icons/favicon.svg',
 ];
 
+/* Mọi fetch trong SW cũng phải có deadline. SW nằm NGOÀI semaphore của api.js, nên
+ * ~15 asset refresh nền treo vĩnh viễn (server nhận TCP rồi im) sẽ tự ăn hết 6 kết nối
+ * của origin và làm tắc cả app — đúng cơ chế freeze mà api.js vừa chặn. */
+const SW_TIMEOUT_MS = 10000;
+function fetchWithDeadline(req, ms = SW_TIMEOUT_MS) {
+  const ac = new AbortController();
+  const t = setTimeout(() => ac.abort(), ms);
+  return fetch(req, { signal: ac.signal }).finally(() => clearTimeout(t));
+}
+
 /* ---------- install: precache static (bỏ qua lỗi từng URL) ---------- */
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE)
-      .then((cache) => Promise.allSettled(PRECACHE.map((url) => cache.add(url))))
+      .then((cache) => Promise.allSettled(PRECACHE.map(async (url) => {
+        const res = await fetchWithDeadline(new Request(url, { cache: 'reload' }));
+        if (res && res.ok) await cache.put(url, res);
+      })))
       .then(() => self.skipWaiting())
   );
 });
@@ -61,8 +74,8 @@ async function cacheFirst(req) {
   const isNav = req.mode === 'navigate';
   const cached = await cache.match(req, { ignoreSearch: isNav });
 
-  // Luôn làm mới nền (không bao giờ chặn phản hồi)
-  const refresh = fetch(req)
+  // Luôn làm mới nền (không bao giờ chặn phản hồi) — CÓ deadline, xem ghi chú trên
+  const refresh = fetchWithDeadline(req)
     .then((res) => {
       if (res && res.ok && res.type === 'basic') cache.put(req, res.clone()).catch(() => {});
       return res;
