@@ -148,26 +148,34 @@ fi
 export PORT
 
 # Phiên bản mã nguồn VỪA cập nhật trên đĩa (nguồn sự thật: package.json)
+# `|| true` là BẮT BUỘC: script chạy dưới `set -euo pipefail`, thiếu nó thì mọi
+# lệnh dò thất bại (cổng trống, JSON lỗi) sẽ giết cả installer không một dòng log.
 disk_version() {
-  node -e 'try{process.stdout.write(require("./package.json").version||"")}catch(e){}' 2>/dev/null
+  node -e 'try{process.stdout.write(require("./package.json").version||"")}catch(e){}' 2>/dev/null || true
 }
 
-# Đọc một field từ /api/status của tiến trình ĐANG CHẠY (rỗng nếu cổng không có harness)
+# Đọc một field từ /api/status của tiến trình ĐANG CHẠY (rỗng nếu cổng không có harness).
+# curl trả 7 khi cổng trống → với pipefail cả pipeline fail, nên phải chặn bằng `|| true`.
 status_field() {
   command -v curl >/dev/null 2>&1 || return 0
-  curl -fsS --max-time 2 "http://127.0.0.1:$PORT/api/status" 2>/dev/null \
-    | FIELD="$1" node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const j=JSON.parse(s);if(j.ok&&j[process.env.FIELD]!=null)process.stdout.write(String(j[process.env.FIELD]))}catch(e){}})' 2>/dev/null
+  { curl -fsS --max-time 2 "http://127.0.0.1:$PORT/api/status" 2>/dev/null \
+    | FIELD="$1" node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const j=JSON.parse(s);if(j.ok&&j[process.env.FIELD]!=null)process.stdout.write(String(j[process.env.FIELD]))}catch(e){}})' 2>/dev/null; } || true
 }
 running_version() { status_field version; }
 
-# Mọi PID đang LISTEN cổng $PORT (không xét thư mục)
+# Mọi PID đang LISTEN cổng $PORT (không xét thư mục).
+# Từng nhánh đều `|| true`: dưới `set -e` một AND-list thất bại ở lệnh CUỐI sẽ giết script.
 port_pids() {
   local pids=""
   if command -v ss >/dev/null 2>&1; then
-    pids=$(ss -ltnpH "sport = :$PORT" 2>/dev/null | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u)
+    pids=$(ss -ltnpH "sport = :$PORT" 2>/dev/null | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u || true)
   fi
-  [ -z "$pids" ] && command -v lsof >/dev/null 2>&1 && pids=$(lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null)
-  [ -z "$pids" ] && command -v fuser >/dev/null 2>&1 && pids=$(fuser -n tcp "$PORT" 2>/dev/null | tr -s ' ' '\n' | grep -E '^[0-9]+$')
+  if [ -z "$pids" ] && command -v lsof >/dev/null 2>&1; then
+    pids=$(lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null || true)
+  fi
+  if [ -z "$pids" ] && command -v fuser >/dev/null 2>&1; then
+    pids=$(fuser -n tcp "$PORT" 2>/dev/null | tr -s ' ' '\n' | grep -E '^[0-9]+$' || true)
+  fi
   echo "$pids"
 }
 
@@ -175,7 +183,9 @@ port_pids() {
 pid_cwd() {
   local cwd
   cwd=$(readlink "/proc/$1/cwd" 2>/dev/null || true)
-  [ -z "$cwd" ] && cwd=$(lsof -a -p "$1" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -1)
+  if [ -z "$cwd" ]; then
+    cwd=$(lsof -a -p "$1" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -1 || true)
+  fi
   echo "${cwd% (deleted)}"
 }
 
@@ -212,7 +222,7 @@ stop_running() {
     [ -z "$cand" ] && continue
     kill -0 "$cand" 2>/dev/null || continue
     # (a) phải đang giữ đúng cổng $PORT
-    echo "$listening" | tr ' ' '\n' | grep -qx "$cand" || continue
+    printf '%s\n' $listening | grep -qx "$cand" || continue
     # (b) phải thuộc đúng $DIR (ưu tiên rootDir do server tự báo, sau đó cwd)
     if [ -n "$srv_root" ] && [ "$srv_root" != "$want" ] && [ "$srv_root" != "$DIR" ]; then continue; fi
     cwd=$(pid_cwd "$cand")

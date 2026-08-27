@@ -476,6 +476,15 @@ await check('install.sh: update tự restart + chỉ kill đúng cổng & đúng
   }
   // TUYỆT ĐỐI không pkill theo tên tiến trình (giết cả instance khác của người dùng)
   if (/pkill\s+-f\s+server\/index\.js/.test(sh)) problems.push('install.sh còn pkill -f server/index.js');
+  // set -euo pipefail: mọi hàm DÒ (có thể fail bình thường) phải tự chặn lỗi,
+  // nếu không cổng trống/JSON lỗi sẽ giết cả installer không một dòng log.
+  for (const fn of ['disk_version()', 'status_field()', 'port_pids()', 'pid_cwd()']) {
+    const name = fn.replace('()', '');
+    const body = sh.split(`${name}() {`)[1]?.split('\n}')[0] ?? '';
+    if (!body.includes('|| true')) problems.push(`${fn} thiếu "|| true" → chết dưới set -e khi dò thất bại`);
+  }
+  // AND-list `[ -z x ] && cmd` ở cuối hàm cũng giết script dưới set -e
+  if (/^\s*\[ -z "\$pids" \] && command/m.test(sh)) problems.push('port_pids còn AND-list trần → chết dưới set -e');
   // repo URL phải là repo chuẩn hiện tại
   if (!sh.includes('article-hub-studio/harness-executor')) problems.push('install.sh dùng URL repo cũ');
   assert(problems.length === 0, `install.sh chưa đúng:\n    ${problems.join('\n    ')}`);
